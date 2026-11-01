@@ -1,0 +1,285 @@
+"""Typed, network-free configuration with explicit, portable source precedence."""
+
+from __future__ import annotations
+
+import json
+import os
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Annotated, Literal
+from uuid import UUID
+
+import yaml
+from dotenv import dotenv_values
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SECRET_NAMES = {
+    "LIVEKIT_API_KEY": "livekit_api_key",
+    "LIVEKIT_API_SECRET": "livekit_api_secret",
+    "DEEPGRAM_API_KEY": "deepgram_api_key",
+    "GROQ_API_KEY": "groq_api_key",
+    "CARTESIA_API_KEY": "cartesia_api_key",
+}
+
+
+class ConfigurationError(ValueError):
+    """Actionable configuration error whose message contains no input values."""
+
+
+class Model(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid", hide_input_in_errors=True, frozen=True, allow_inf_nan=False
+    )
+
+
+class Credentials(Model):
+    livekit_url: str = ""
+    livekit_api_key: SecretStr = SecretStr("")
+    livekit_api_secret: SecretStr = SecretStr("")
+    deepgram_api_key: SecretStr = SecretStr("")
+    groq_api_key: SecretStr = SecretStr("")
+    cartesia_api_key: SecretStr = SecretStr("")
+
+
+class STTSettings(Model):
+    model: Literal["nova-3", "flux-general-en"] = "nova-3"
+    language: Literal["en"] = "en"
+    keyterms: tuple[Annotated[str, Field(min_length=1, max_length=100)], ...] = ()
+    eot_threshold: float | None = Field(default=None, ge=0.5, le=0.9)
+    eager_eot_threshold: float | None = Field(default=None, ge=0.3, le=0.9)
+
+
+class LLMSettings(Model):
+    model: Literal["openai/gpt-oss-20b"] = "openai/gpt-oss-20b"
+    reasoning_effort: Literal["low", "medium", "high"] = "low"
+    max_output_tokens: int = Field(default=256, ge=16, le=4096)
+    temperature: float = Field(default=0.6, ge=0, le=2)
+    history_messages: int = Field(default=24, ge=2, le=200)
+
+
+class TTSSettings(Model):
+    model: Literal["sonic-3"] = "sonic-3"
+    voice_id: UUID | None = None
+    language: Literal["en"] = "en"
+    emotion: Literal["neutral", "calm", "content", "excited", "sympathetic"] = "neutral"
+    speed: float = Field(default=1.0, ge=0.6, le=1.5)
+    volume: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class ListeningSettings(Model):
+    turn_detection: Literal["vad", "semantic", "stt"] = "vad"
+    min_endpoint_delay: float = Field(default=0.5, ge=0, le=10)
+    max_endpoint_delay: float = Field(default=3.0, ge=0, le=30)
+
+    @model_validator(mode="after")
+    def ordered_delays(self) -> ListeningSettings:
+        if self.min_endpoint_delay > self.max_endpoint_delay:
+            raise ValueError("min_endpoint_delay must not exceed max_endpoint_delay")
+        return self
+
+
+class InterruptionSettings(Model):
+    enabled: bool = True
+    mode: Literal["vad"] = "vad"
+    min_duration: float = Field(default=0.5, ge=0.1, le=5)
+    min_words: int = Field(default=0, ge=0, le=10)
+    false_interruption_timeout: float = Field(default=2.0, ge=0.1, le=10)
+    resume_false_interruption: bool = True
+
+
+class LatencySettings(Model):
+    preemptive_llm: bool = False
+    preemptive_tts: Literal[False] = False
+    metrics: bool = True
+
+
+class HumanizationSettings(Model):
+    enabled: bool = False
+    disfluencies: Literal["contextual", "off"] = "contextual"
+    pauses: Literal["punctuation"] = "punctuation"
+    pace: Literal["baseline"] = "baseline"
+    emotional_range: Literal["baseline"] = "baseline"
+    markup: Literal[False] = False
+    laughter: Literal[False] = False
+
+
+class RuntimeSettings(Model):
+    dispatch: Literal["auto", "explicit"] = "explicit"
+    agent_name: str = Field(default="voiceagent", pattern=r"^[a-z][a-z0-9_-]{0,62}$")
+    greeting: str | None = Field(default=None, max_length=500)
+    max_session_seconds: float = Field(default=1800, ge=10, le=14400)
+    idle_timeout_seconds: float = Field(default=120, ge=5, le=3600)
+    hook_timeout_seconds: float = Field(default=2, gt=0, le=30)
+    log_level: Literal["INFO", "WARNING", "ERROR"] = "INFO"
+
+
+class Limits(Model):
+    request_timeout_seconds: float = Field(default=10, gt=0, le=60)
+    max_retries: int = Field(default=0, ge=0, le=2)
+    retry_interval_seconds: float = Field(default=2, ge=1, le=30)
+    max_prompt_bytes: int = Field(default=32768, ge=128, le=262144)
+    max_metadata_bytes: int = Field(default=2048, ge=0, le=8192)
+
+
+class Settings(Model):
+    credentials: Credentials = Field(default_factory=Credentials, repr=False)
+    stt: STTSettings = Field(default_factory=STTSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+    tts: TTSSettings = Field(default_factory=TTSSettings)
+    listening: ListeningSettings = Field(default_factory=ListeningSettings)
+    interruption: InterruptionSettings = Field(default_factory=InterruptionSettings)
+    latency: LatencySettings = Field(default_factory=LatencySettings)
+    humanization: HumanizationSettings = Field(default_factory=HumanizationSettings)
+    runtime: RuntimeSettings = Field(default_factory=RuntimeSettings)
+    limits: Limits = Field(default_factory=Limits)
+    prompt_path: Path = PROJECT_ROOT / "prompt.md"
+
+    @model_validator(mode="after")
+    def validate_profiles(self) -> Settings:
+        flux = self.stt.model.startswith("flux-")
+        if flux != (self.listening.turn_detection == "stt"):
+            raise ValueError("Flux requires stt turn detection; Nova requires vad or semantic")
+        if not flux and (
+            self.stt.eot_threshold is not None or self.stt.eager_eot_threshold is not None
+        ):
+            raise ValueError("Flux thresholds cannot be used with Nova")
+        if len(self.stt.keyterms) > 100:
+            raise ValueError("at most 100 STT keyterms are supported")
+        return self
+
+    def require_credentials(self, *, room: bool) -> None:
+        names = ["DEEPGRAM_API_KEY", "GROQ_API_KEY", "CARTESIA_API_KEY"]
+        if room:
+            names += ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"]
+        missing = [
+            name
+            for name in names
+            if not getattr(self.credentials, SECRET_NAMES[name]).get_secret_value().strip()
+        ]
+        if room and not self.credentials.livekit_url.strip():
+            missing.append("LIVEKIT_URL")
+        if missing:
+            raise ConfigurationError("Missing required credentials: " + ", ".join(missing))
+        if room and not self.credentials.livekit_url.startswith(("wss://", "ws://")):
+            raise ConfigurationError("LIVEKIT_URL must use wss:// or ws://")
+        if self.tts.voice_id is None:
+            raise ConfigurationError("Set VOICEAGENT_TTS__VOICE_ID to an authorized Cartesia UUID")
+
+    def redacted(self) -> dict:
+        result = self.model_dump(mode="json")
+        # URLs can contain credentials or query tokens. Do not print them either.
+        result["credentials"] = {
+            name: "<set>"
+            if (value.get_secret_value() if isinstance(value, SecretStr) else value)
+            else "<unset>"
+            for name, value in self.credentials
+        }
+        return result
+
+
+def _merge(base: dict, override: Mapping) -> dict:
+    result = dict(base)
+    for key, value in override.items():
+        if isinstance(value, Mapping) and isinstance(result.get(key), Mapping):
+            result[key] = _merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def _portable_path(path: str | Path, root: Path) -> Path:
+    if not isinstance(path, (str, Path)) or "\x00" in str(path):
+        raise ConfigurationError("Config and prompt paths must be valid strings or Paths")
+    candidate = Path(path)
+    return candidate if candidate.is_absolute() else root / candidate
+
+
+def _env_settings(values: Mapping[str, str | None]) -> dict:
+    result: dict = {}
+    credentials: dict = {}
+    for key, value in values.items():
+        if value is None or not value.strip():
+            continue
+        if key in SECRET_NAMES:
+            credentials[SECRET_NAMES[key]] = value
+        elif key == "LIVEKIT_URL":
+            credentials["livekit_url"] = value
+        elif key == "VOICEAGENT_PROMPT_PATH":
+            result["prompt_path"] = value
+        elif key.startswith("VOICEAGENT_") and "__" in key:
+            parts = key.removeprefix("VOICEAGENT_").lower().split("__")
+            if parts[0] == "credentials":
+                raise ConfigurationError("Use the documented provider credential variable names")
+            target = result
+            for part in parts[:-1]:
+                child = target.setdefault(part, {})
+                if not isinstance(child, dict):
+                    raise ConfigurationError("Conflicting nested environment settings")
+                target = child
+            try:
+                target[parts[-1]] = json.loads(value)
+            except (ValueError, TypeError):
+                target[parts[-1]] = value
+    if credentials:
+        result["credentials"] = credentials
+    return result
+
+
+def load_settings(
+    *,
+    overrides: Mapping | None = None,
+    config_path: str | Path | None = None,
+    environ: Mapping[str, str] | None = None,
+    project_root: Path = PROJECT_ROOT,
+) -> Settings:
+    """Overrides > process env > project .env.local > YAML > typed defaults.
+
+    Explicit relative config/prompt paths resolve from the copied project root.
+    No parent .env files, current working directory, or network access are used.
+    """
+    env = os.environ if environ is None else environ
+    if overrides is not None and not isinstance(overrides, Mapping):
+        raise ConfigurationError("Constructor overrides must be a mapping")
+    try:
+        local = dotenv_values(project_root / ".env.local", interpolate=False, encoding="utf-8-sig")
+    except (OSError, UnicodeError):
+        raise ConfigurationError("Cannot read project .env.local as UTF-8") from None
+    path = config_path or env.get("VOICEAGENT_CONFIG_PATH") or local.get("VOICEAGENT_CONFIG_PATH")
+    config = _portable_path(path or "config.example.yaml", project_root)
+    try:
+        with config.open("rb") as handle:
+            raw = handle.read(65537)
+        if len(raw) > 65536:
+            raise ConfigurationError("Configuration exceeds 65536 bytes")
+        data = yaml.safe_load(raw.decode("utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError, RecursionError):
+        raise ConfigurationError(
+            "Cannot read configuration: expected a readable UTF-8 YAML file"
+        ) from None
+    if not isinstance(data, dict):
+        raise ConfigurationError("Configuration must be a YAML mapping")
+    if "credentials" in data:
+        raise ConfigurationError("Credentials are forbidden in YAML; use environment or .env.local")
+    data = _merge(data, _env_settings(local))
+    data = _merge(data, _env_settings(env))
+    data = _merge(data, overrides or {})
+    data["prompt_path"] = _portable_path(data.get("prompt_path", "prompt.md"), project_root)
+    try:
+        return Settings.model_validate(data)
+    except ValidationError as exc:
+        # Never include Pydantic input values or user-supplied text in errors.
+        errors = exc.errors()
+        fields = sorted({".".join(map(str, error["loc"])) or "profile" for error in errors})
+        # Our cross-field validators use fixed messages, which make conflicts actionable.
+        reasons = sorted(
+            {
+                error["msg"].removeprefix("Value error, ")
+                for error in errors
+                if error["type"] == "value_error"
+            }
+        )
+        detail = "; " + "; ".join(reasons) if reasons else ""
+        raise ConfigurationError(
+            "Invalid configuration fields: " + ", ".join(fields) + detail
+        ) from None

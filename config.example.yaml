@@ -1,0 +1,58 @@
+# Non-secret defaults. Copy to config.local.yaml and set VOICEAGENT_CONFIG_PATH if needed.
+stt:
+  model: nova-3
+  language: en
+  keyterms: []
+  eot_threshold: null
+  eager_eot_threshold: null
+llm:
+  model: openai/gpt-oss-20b
+  reasoning_effort: low
+  max_output_tokens: 256
+  temperature: 0.6
+  history_messages: 24
+tts:
+  model: sonic-3
+  voice_id: null
+  language: en
+  emotion: neutral
+  speed: 1.0
+  volume: 1.0
+listening:
+  turn_detection: vad
+  min_endpoint_delay: 0.5
+  max_endpoint_delay: 3.0
+interruption:
+  enabled: true
+  mode: vad
+  min_duration: 0.5
+  min_words: 0
+  false_interruption_timeout: 2.0
+  resume_false_interruption: true
+latency:
+  preemptive_llm: false
+  preemptive_tts: false
+  metrics: true
+humanization:
+  enabled: false
+  disfluencies: contextual
+  pauses: punctuation
+  pace: baseline
+  emotional_range: baseline
+  markup: false
+  laughter: false
+runtime:
+  dispatch: explicit
+  agent_name: voiceagent
+  greeting: null
+  max_session_seconds: 1800
+  idle_timeout_seconds: 120
+  hook_timeout_seconds: 2
+  log_level: INFO
+limits:
+  request_timeout_seconds: 10
+  max_retries: 0
+  retry_interval_seconds: 2
+  max_prompt_bytes: 32768
+  max_metadata_bytes: 2048
+prompt_path: prompt.md

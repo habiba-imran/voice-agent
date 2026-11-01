@@ -19,3 +19,5 @@ build
 **/*.flac
 .uv-cache
 .uv-diagnostic-cache
+.tools
+console-recordings

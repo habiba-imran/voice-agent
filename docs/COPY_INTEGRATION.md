@@ -25,22 +25,25 @@ messages, to be enforced by the Phase 2 LiveKit integration rather than a separa
 
 ## Host extension boundary
 
-The host may explicitly pass an async hook to the runtime once Phase 2 is implemented.
-The setup contract is already testable independently:
+The host may pass a top-level async hook to `voiceagent.runtime.build_server(settings, hook=setup)`.
+Use a top-level function so process-based workers can serialize it. The independent setup boundary:
 
 ```python
-from voiceagent.hooks import SessionExtensions, prepare_extensions
+from voiceagent.hooks import SessionExtensions, resolve_extensions
+
 
 async def setup():
     return SessionExtensions(metadata={"topic": "general assistance"})
 
+
 # Await during session setup only. With no hook, the result is empty and no I/O occurs.
-extensions = await prepare_extensions(setup, deadline_seconds=2)
+extensions = await resolve_extensions(setup, deadline_seconds=2)
 ```
 
-The result has a tools tuple and bounded string metadata. Tools must be supported LiveKit tools;
-runtime validation and startup fallback remain a Phase 2 task. HookError contains no payload or
-exception details; the runtime should log a fixed warning and continue with no extensions.
+The result has a tools tuple and bounded string metadata. Tools must be decorated LiveKit function
+tools; validation and startup fallback are implemented. `resolve_extensions` logs a fixed warning
+and continues without optional extensions after failure. For strict callers, `prepare_extensions`
+raises a sanitized HookError instead.
 Cancellation propagates. Hooks are never discovered from YAML, imported from arbitrary strings,
 or called on every token. Registered tools own their authorization, side effects and cancellation
 semantics. Do not put credentials or personal data in session metadata.
@@ -55,3 +58,21 @@ One copy belongs to one deployment context. Provision separate provider secrets,
 agent deployment ID, named dispatch policy, voice permissions, and budget for each consuming app.
 Do not copy another app's deployment identity. Cloud worker deployment and self-hosted Docker
 execution are later phase gates; see PHASE_REPORT.md before treating the template as runnable.
+
+## Verified startup and offline verification
+
+`agent.py` exports a global server for installed LiveKit discovery and prepends its own src path.
+This prevents a host's `voiceagent.py` from shadowing the copied package. The clean-copy test
+checks that collision, editable package discovery, SDK server discovery, current `start --help`,
+prompt/config edits, and a separate rerun of the copied unit suite.
+
+Normal setup uses `uv sync --locked` and requires dependency access or a populated uv cache.
+`UV_CACHE_DIR` selects the setup/test cache. For a network-constrained test, the optional
+`VOICEAGENT_TEST_WHEELHOUSE` points to a local set of verified locked wheels and editable-build
+prerequisites. The test creates a new venv, exports/checks lock hashes, installs artifacts, and
+finishes with `uv sync --locked --offline`. It never copies the original venv or credentials.
+
+`start` delegates to the installed modern LiveKit module CLI. `dev` uses `start --dev` without
+hot reload. Interactive console needs a LiveKit CLI driver; its flags are not locally verified
+because `lk` is unavailable. Starting a real session invokes provider prewarming and may consume
+credits; the native CLI help/discovery checks do neither. Live registration/audio remain unverified.

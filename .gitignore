@@ -21,3 +21,5 @@ build/
 *.egg-info/
 .uv-cache/
 .uv-diagnostic-cache/
+.tools/
+console-recordings/

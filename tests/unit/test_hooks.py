@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from voiceagent.hooks import HookError, SessionExtensions, prepare_extensions
+from voiceagent.hooks import HookError, SessionExtensions, prepare_extensions, resolve_extensions
 
 
 async def test_no_hook():
@@ -55,6 +55,7 @@ async def test_cancellation_propagates():
         {},
         SessionExtensions(metadata={"x": 2}),
         SessionExtensions(tools=[]),
+        SessionExtensions(tools=(object(),)),
         SessionExtensions(metadata={"x": "a" * 2050}),
     ],
 )
@@ -78,3 +79,27 @@ async def test_hook_exception_is_sanitized():
     with pytest.raises(HookError) as error:
         await prepare_extensions(hook)
     assert "synthetic-secret" not in str(error.value)
+
+
+async def test_malformed_optional_hook_does_not_block_startup(caplog):
+    async def hook():
+        raise RuntimeError("synthetic-secret-payload")
+
+    assert await resolve_extensions(hook) == SessionExtensions()
+    assert "Optional session hook disabled" in caplog.text
+    assert "synthetic-secret" not in caplog.text
+
+
+async def test_registered_livekit_tool():
+    from livekit.agents.llm import function_tool
+
+    @function_tool
+    async def synthetic_tool() -> str:
+        """Return a synthetic test value without external I/O."""
+        return "synthetic"
+
+    async def hook():
+        return SessionExtensions(tools=(synthetic_tool,))
+
+    result = await resolve_extensions(hook)
+    assert result.tools == (synthetic_tool,)

@@ -5,8 +5,11 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -47,4 +50,23 @@ async def prepare_extensions(
         raise HookError("Session metadata must contain string keys and values")
     if len(json.dumps(result.metadata, ensure_ascii=False).encode("utf-8")) > max_metadata_bytes:
         raise HookError("Session metadata exceeds limits.max_metadata_bytes")
+    if result.tools:
+        from livekit.agents.llm import is_function_tool, is_raw_function_tool
+
+        if not all(is_function_tool(tool) or is_raw_function_tool(tool) for tool in result.tools):
+            raise HookError("Session tools must be decorated LiveKit function tools")
     return SessionExtensions(tools=result.tools, metadata=dict(result.metadata))
+
+
+async def resolve_extensions(
+    hook: SessionHook | None = None, *, deadline_seconds: float = 2, max_metadata_bytes: int = 2048
+) -> SessionExtensions:
+    """Disable malformed optional extensions while allowing the session to start."""
+    try:
+        return await prepare_extensions(
+            hook, deadline_seconds=deadline_seconds, max_metadata_bytes=max_metadata_bytes
+        )
+    except HookError:
+        # Do not log hook exception text, metadata, arguments, or tool payloads.
+        logger.warning("Optional session hook disabled", extra={"event": "hook_disabled"})
+        return SessionExtensions()

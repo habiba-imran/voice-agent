@@ -12,11 +12,14 @@ from .settings import ConfigurationError, load_settings
 
 def main() -> None:
     if len(sys.argv) == 1 or sys.argv[1] in {"--help", "-h"}:
-        parser = argparse.ArgumentParser(
-            description="VoiceAgent foundation: offline configuration and prompt checks."
+        parser = argparse.ArgumentParser(description="Direct-provider LiveKit voice worker")
+        parser.add_argument(
+            "command", nargs="?", choices=["config", "validate", "start", "dev", "console"]
         )
-        parser.add_argument("command", choices=["config", "validate"], nargs="?")
-        parser.epilog = "Streaming worker commands require the verified Phase 2 runtime."
+        parser.epilog = (
+            "start/dev use the installed LiveKit module CLI. dev has no hot reload. "
+            "console requires a LiveKit CLI TCP driver. Provider runs require approval."
+        )
         parser.print_help()
         return
     if len(sys.argv) > 1 and sys.argv[1] in {"config", "validate"}:
@@ -37,11 +40,13 @@ def main() -> None:
             print(str(exc), file=sys.stderr)
             raise SystemExit(2) from None
         return
-    print(
-        "Streaming runtime is pending Phase 2; use config or validate for offline checks.",
-        file=sys.stderr,
-    )
-    raise SystemExit(2)
+    from .runtime import run
+
+    try:
+        run()
+    except ConfigurationError as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(2) from None
 
 
 if __name__ == "__main__":

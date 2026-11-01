@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from voiceagent.settings import PROJECT_ROOT
 
@@ -34,6 +35,7 @@ def test_git_and_build_exclusions():
         "livekit.other.toml",
         ".venv/Scripts/python.exe",
         "evals/results/synthetic.wav",
+        "console-recordings/session/transcript.json",
     ):
         assert git_rules.match_file(name), name
         assert docker_rules.match_file(name), name
@@ -72,6 +74,12 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
     shutil.copytree(
+        PROJECT_ROOT / "scripts",
+        destination / "scripts",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    shutil.copytree(PROJECT_ROOT / "tests" / "fixtures", destination / "tests" / "fixtures")
+    shutil.copytree(
         PROJECT_ROOT / "tests" / "unit",
         destination / "tests" / "unit",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
@@ -80,6 +88,7 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
     # The parent deliberately contains conflicting app imports and secrets. Neither is used.
     (host / "voiceagent.py").write_text("raise RuntimeError('wrong host import')\n")
     (host / ".env").write_text("GROQ_API_KEY=synthetic-host-credential-must-not-load\n")
+    configured_cache = os.environ.get("UV_CACHE_DIR")
     environment = dict(os.environ)
     for key in list(environment):
         if key.startswith(("VOICEAGENT_", "LIVEKIT_", "UV_")) or key in {
@@ -91,9 +100,10 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         }:
             environment.pop(key)
     environment["UV_PYTHON"] = sys.executable
-    cache = PROJECT_ROOT / ".uv-cache"
-    if not cache.exists():
-        # In fresh CI uv uses its normal cache populated by the required uv sync --locked step.
+    if configured_cache:
+        cache = Path(configured_cache).resolve()
+    else:
+        # Use the cache selected by setup, not a stale directory left by earlier diagnostics.
         cache_result = subprocess.run(
             ["uv", "cache", "dir"],
             capture_output=True,
@@ -103,8 +113,67 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
             timeout=30,
         )
         cache = Path(cache_result.stdout.strip())
+    executable = destination / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    wheelhouse = os.environ.get("VOICEAGENT_TEST_WHEELHOUSE")
+    if wheelhouse:
+        # A wheelhouse supplies dependencies on networks that cannot sustain large downloads.
+        # Still build a new environment and validate every runtime artifact against uv.lock.
+        requirements = destination / "locked-test-requirements.txt"
+        bootstrap = [
+            ["uv", "venv", "--python", sys.executable, str(destination / ".venv")],
+            [
+                "uv",
+                "export",
+                "--locked",
+                "--offline",
+                "--format",
+                "requirements-txt",
+                "--no-emit-project",
+                "--output-file",
+                str(requirements),
+                "--quiet",
+            ],
+            [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                str(executable),
+                "--offline",
+                "--no-index",
+                "--find-links",
+                str(Path(wheelhouse).resolve()),
+                "--require-hashes",
+                "-r",
+                str(requirements),
+                "--link-mode",
+                "copy",
+            ],
+        ]
+        for command in bootstrap:
+            prepared = subprocess.run(
+                [*command, "--cache-dir", str(cache)],
+                cwd=destination,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            assert prepared.returncode == 0, prepared.stdout + prepared.stderr
+    install_command = [
+        "uv",
+        "sync",
+        "--locked",
+        "--offline",
+        "--cache-dir",
+        str(cache),
+        "--link-mode",
+        "copy",
+    ]
+    if wheelhouse:
+        install_command += ["--find-links", str(Path(wheelhouse).resolve())]
     installed = subprocess.run(
-        ["uv", "sync", "--locked", "--offline", "--cache-dir", str(cache)],
+        install_command,
         cwd=destination,
         env=environment,
         capture_output=True,
@@ -112,7 +181,35 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         timeout=180,
     )
     assert installed.returncode == 0, installed.stderr
-    executable = destination / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    discovered = subprocess.run(
+        [
+            str(executable),
+            "-c",
+            "from pathlib import Path; import importlib; "
+            "from livekit.agents.cli.discover import get_import_data; "
+            f"data=get_import_data(path=Path({str(destination / 'agent.py')!r})); "
+            "mod=importlib.import_module(data.module_data.module_import_str); "
+            "from livekit.agents import AgentServer; "
+            "assert isinstance(getattr(mod,data.app_name),AgentServer); print(data.app_name)",
+        ],
+        cwd=host,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert discovered.returncode == 0, discovered.stderr
+    assert discovered.stdout.strip() == "server"
+    help_result = subprocess.run(
+        [str(executable), str(destination / "agent.py"), "start", "--help"],
+        cwd=host,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert help_result.returncode == 0, help_result.stderr
+    assert "--log-format" in help_result.stdout
     result = subprocess.run(
         [str(executable), str(destination / "agent.py"), "config"],
         cwd=host,
@@ -125,6 +222,22 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
     data = json.loads(result.stdout)
     assert data["credentials"]["groq_api_key"] == "<unset>"
     assert Path(data["prompt_path"]) == destination / "prompt.md"
+    config_path = destination / "config.example.yaml"
+    original_config = config_path.read_text(encoding="utf-8")
+    copied_config = yaml.safe_load(original_config)
+    copied_config["tts"]["speed"] = 1.1
+    config_path.write_text(yaml.safe_dump(copied_config), encoding="utf-8")
+    changed = subprocess.run(
+        [str(executable), str(destination / "agent.py"), "config"],
+        cwd=host,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert changed.returncode == 0, changed.stderr
+    assert json.loads(changed.stdout)["tts"]["speed"] == 1.1
+    config_path.write_text(original_config, encoding="utf-8")
     # Prompt edits take effect from the copy, independently of original module/CWD.
     (destination / "prompt.md").write_text("Synthetic copied prompt revision", encoding="utf-8")
     inspect_copy = subprocess.run(
@@ -151,6 +264,6 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         env=environment,
         capture_output=True,
         text=True,
-        timeout=90,
+        timeout=180,
     )
     assert suite.returncode == 0, suite.stdout + suite.stderr

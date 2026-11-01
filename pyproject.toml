@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -26,6 +26,7 @@ packages = ["src/voiceagent"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-markers"
 markers = ["integration: offline SDK and copy-in checks", "live: requires explicit credit approval and credentials"]
 

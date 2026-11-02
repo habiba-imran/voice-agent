@@ -7,6 +7,7 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import yaml
@@ -48,6 +49,7 @@ class STTSettings(Model):
     keyterms: tuple[Annotated[str, Field(min_length=1, max_length=100)], ...] = ()
     eot_threshold: float | None = Field(default=None, ge=0.5, le=0.9)
     eager_eot_threshold: float | None = Field(default=None, ge=0.3, le=0.9)
+    eot_timeout_ms: int | None = Field(default=None, ge=500, le=60000)
 
 
 class LLMSettings(Model):
@@ -67,10 +69,20 @@ class TTSSettings(Model):
     volume: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
+class VADSettings(Model):
+    min_speech_duration: float = Field(default=0.05, ge=0.01, le=1)
+    min_silence_duration: float = Field(default=0.55, ge=0.1, le=3)
+    prefix_padding_duration: float = Field(default=0.5, ge=0, le=2)
+    activation_threshold: float = Field(default=0.5, gt=0, lt=1)
+
+
 class ListeningSettings(Model):
     turn_detection: Literal["vad", "semantic", "stt"] = "vad"
+    endpointing_mode: Literal["fixed", "dynamic"] = "fixed"
+    endpointing_alpha: float = Field(default=0.9, gt=0, lt=1)
     min_endpoint_delay: float = Field(default=0.5, ge=0, le=10)
     max_endpoint_delay: float = Field(default=3.0, ge=0, le=30)
+    vad: VADSettings = Field(default_factory=VADSettings)
 
     @model_validator(mode="after")
     def ordered_delays(self) -> ListeningSettings:
@@ -81,24 +93,54 @@ class ListeningSettings(Model):
 
 class InterruptionSettings(Model):
     enabled: bool = True
-    mode: Literal["vad"] = "vad"
+    mode: Literal["vad", "adaptive"] = "vad"
+    allow_cloud_inference: bool = False
     min_duration: float = Field(default=0.5, ge=0.1, le=5)
     min_words: int = Field(default=0, ge=0, le=10)
-    false_interruption_timeout: float = Field(default=2.0, ge=0.1, le=10)
+    false_interruption_timeout: float | None = Field(default=2.0, ge=0.1, le=10)
     resume_false_interruption: bool = True
+    discard_audio_if_uninterruptible: bool = True
+    backchannel_boundary: (
+        tuple[Annotated[float, Field(ge=0, le=5)], Annotated[float, Field(ge=0, le=5)]] | None
+    ) = (1.0, 1.0)
+
+    @model_validator(mode="after")
+    def explicit_cloud_opt_in(self) -> InterruptionSettings:
+        if self.mode == "adaptive" and not self.allow_cloud_inference:
+            raise ValueError("Adaptive interruption requires explicit allow_cloud_inference opt-in")
+        return self
 
 
 class LatencySettings(Model):
     preemptive_llm: bool = False
     preemptive_tts: Literal[False] = False
     metrics: bool = True
+    metric_window: int = Field(default=256, ge=16, le=10000)
 
 
 class HumanizationSettings(Model):
     enabled: bool = False
+    default_style: Literal[
+        "neutral", "conversational", "reassuring", "thoughtful", "curious", "enthusiastic"
+    ] = "conversational"
+    emotion: Literal[
+        "auto",
+        "neutral",
+        "calm",
+        "content",
+        "excited",
+        "sympathetic",
+        "curious",
+        "confident",
+        "contemplative",
+    ] = "auto"
+    speed: float | None = Field(default=None, ge=0.6, le=1.5)
+    volume: float | None = Field(default=None, ge=0.5, le=2)
     disfluencies: Literal["contextual", "off"] = "contextual"
+    max_leading_fillers_per_turn: Literal[0, 1] = 1
+    filler_cooldown_turns: int = Field(default=3, ge=1, le=20)
     pauses: Literal["punctuation"] = "punctuation"
-    pace: Literal["baseline"] = "baseline"
+    pace: Literal["baseline", "measured", "lively"] = "baseline"
     emotional_range: Literal["baseline"] = "baseline"
     markup: Literal[False] = False
     laughter: Literal[False] = False
@@ -112,14 +154,20 @@ class RuntimeSettings(Model):
     idle_timeout_seconds: float = Field(default=120, ge=5, le=3600)
     hook_timeout_seconds: float = Field(default=2, gt=0, le=30)
     log_level: Literal["INFO", "WARNING", "ERROR"] = "INFO"
+    startup_timeout_seconds: float = Field(default=30, ge=1, le=120)
+    drain_timeout_seconds: float = Field(default=5, ge=0, le=30)
+    shutdown_timeout_seconds: float = Field(default=10, ge=1, le=60)
 
 
 class Limits(Model):
     request_timeout_seconds: float = Field(default=10, gt=0, le=60)
-    max_retries: int = Field(default=0, ge=0, le=2)
+    max_retries: Literal[0] = 0
     retry_interval_seconds: float = Field(default=2, ge=1, le=30)
     max_prompt_bytes: int = Field(default=32768, ge=128, le=262144)
     max_metadata_bytes: int = Field(default=2048, ge=0, le=8192)
+    max_tool_steps: int = Field(default=3, ge=0, le=5)
+    max_llm_requests: int = Field(default=100, ge=1, le=1000)
+    max_input_bytes: int = Field(default=8192, ge=128, le=65536)
 
 
 class Settings(Model):
@@ -141,9 +189,23 @@ class Settings(Model):
         if flux != (self.listening.turn_detection == "stt"):
             raise ValueError("Flux requires stt turn detection; Nova requires vad or semantic")
         if not flux and (
-            self.stt.eot_threshold is not None or self.stt.eager_eot_threshold is not None
+            self.stt.eot_threshold is not None
+            or self.stt.eager_eot_threshold is not None
+            or self.stt.eot_timeout_ms is not None
         ):
             raise ValueError("Flux thresholds cannot be used with Nova")
+        if flux and self.listening.endpointing_mode != "fixed":
+            raise ValueError("Flux owns endpointing; dynamic endpointing applies only to Nova")
+        # Locked audio detector starts predictions after 200 ms silence and requires
+        # another 50 ms before the VAD closes the segment (SDK 1.8.10 invariant).
+        if (
+            self.listening.turn_detection == "semantic"
+            and self.listening.vad.min_silence_duration < 0.25
+        ):
+            raise ValueError("Semantic turn detection requires vad.min_silence_duration >= 0.25")
+        if self.stt.eager_eot_threshold is not None:
+            if self.stt.eager_eot_threshold > (self.stt.eot_threshold or 0.7):
+                raise ValueError("Flux eager_eot_threshold must not exceed eot_threshold")
         if len(self.stt.keyterms) > 100:
             raise ValueError("at most 100 STT keyterms are supported")
         return self
@@ -151,6 +213,8 @@ class Settings(Model):
     def require_credentials(self, *, room: bool) -> None:
         names = ["DEEPGRAM_API_KEY", "GROQ_API_KEY", "CARTESIA_API_KEY"]
         if room:
+            names += ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"]
+        elif self.interruption.mode == "adaptive":
             names += ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"]
         missing = [
             name
@@ -161,13 +225,49 @@ class Settings(Model):
             missing.append("LIVEKIT_URL")
         if missing:
             raise ConfigurationError("Missing required credentials: " + ", ".join(missing))
-        if room and not self.credentials.livekit_url.startswith(("wss://", "ws://")):
-            raise ConfigurationError("LIVEKIT_URL must use wss:// or ws://")
+        if room:
+            try:
+                url = urlsplit(self.credentials.livekit_url)
+                valid = (
+                    url.scheme in {"wss", "ws"}
+                    and url.hostname
+                    and url.port != 0
+                    and not url.username
+                    and not url.password
+                    and not url.query
+                    and not url.fragment
+                    and (url.scheme == "wss" or url.hostname in {"localhost", "127.0.0.1", "::1"})
+                )
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ConfigurationError(
+                    "LIVEKIT_URL requires wss://host, or ws://loopback; "
+                    "no URL credentials/query/fragment"
+                )
         if self.tts.voice_id is None:
             raise ConfigurationError("Set VOICEAGENT_TTS__VOICE_ID to an authorized Cartesia UUID")
 
     def redacted(self) -> dict:
         result = self.model_dump(mode="json")
+        secrets = [
+            value.get_secret_value()
+            for name, value in self.credentials
+            if name != "livekit_url" and value.get_secret_value()
+        ]
+
+        def redact(value):
+            if isinstance(value, str):
+                for secret in sorted(secrets, key=len, reverse=True):
+                    value = value.replace(secret, "<redacted>")
+                return value
+            if isinstance(value, dict):
+                return {key: redact(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [redact(item) for item in value]
+            return value
+
+        result = redact(result)
         # URLs can contain credentials or query tokens. Do not print them either.
         result["credentials"] = {
             name: "<set>"
@@ -270,7 +370,14 @@ def load_settings(
     except ValidationError as exc:
         # Never include Pydantic input values or user-supplied text in errors.
         errors = exc.errors()
-        fields = sorted({".".join(map(str, error["loc"])) or "profile" for error in errors})
+        fields = sorted(
+            {
+                ".".join(map(str, (*error["loc"][:-1], "<unknown>")))
+                if error["type"] == "extra_forbidden"
+                else ".".join(map(str, error["loc"])) or "profile"
+                for error in errors
+            }
+        )
         # Our cross-field validators use fixed messages, which make conflicts actionable.
         reasons = sorted(
             {

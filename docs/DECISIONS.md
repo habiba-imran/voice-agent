@@ -140,3 +140,264 @@ Phase 0 and Phase 1 pass. Phase 2 is implemented and tested offline but its exit
 on live voice/room acceptance. Exactly five Groq text requests were approved and completed; that
 budget is exhausted. Deepgram/Cartesia requests, voice availability/listening, room registration,
 latency/caching benchmarks and deployment have not been approved or executed.
+
+## Phase 3 offline scope and installed APIs — 2026-11-02
+
+The user explicitly authorized Phase 3 offline work despite the still-blocked Phase 2 voice
+gate. This supersedes phase-order restrictions only for this offline implementation; it does
+not authorize provider consumption or satisfy either live exit gate. The five Groq requests
+remain the only authorized/completed provider calls. No new dependency version is needed.
+
+Official turn detector, tuning, adaptive interruption and direct Deepgram pages linked above
+were rechecked, along with [Flux EOT configuration](https://developers.deepgram.com/docs/flux/configuration).
+The installed 1.8.10 source was inspected before adding each option. Findings:
+
+- The text-based turn-detector plugin is deprecated. Use the current public
+  `inference.TurnDetector(version="v1-mini")` for the existing `semantic` selector. It runs on
+  local CPU with bundled native weights; it does not require EnglishModel, Hugging Face files,
+  a second conversational LLM request or a new dependency. Pinning the version prevents dev or
+  hosted auto-selection of Cloud inference. `livekit.local_inference.init_eot()` prewarms it
+  when that profile is selected. The real binary was exercised on synthetic silence; this is
+  loading/prediction evidence, not speech-classification accuracy.
+- Preserve the Phase 2 Nova/VAD default and fixed 0.5/3-second endpoint bounds until audio
+  comparisons justify another default. Dynamic endpointing (`mode`, `alpha`) is exposed for
+  Nova. The native detector starts prediction after 200 ms silence and requires Silero segment
+  closure at least 50 ms later; validate `min_silence_duration >= 0.25` with the local detector.
+- Flux is explicitly required by plan 3.2, so add a separately selectable direct `STTv2`
+  profile with `turn_detection="stt"`. STT owns EOT; VAD remains for barge-in. Set SDK fixed
+  endpoint delays to zero in that profile to avoid adding Nova/default 0.5-second waits after
+  Flux events. A native-session test confirms final transcript/VAD silence alone does not
+  commit a Flux turn; the provider END_OF_SPEECH does. Actual provider streaming/A-B remain blocked.
+- Current Deepgram documentation permits EOT timeout 500–60000 ms and threshold up to 1.0;
+  the plugin docstring still describes a 3000 ms timeout default while Deepgram documents
+  5000 ms. Leave unspecified values with the provider and recommend explicit values for A/B.
+  Keep the application's existing threshold maximum of 0.9: 1.0 needs manual ForceEndTurn,
+  which is outside this phase. Enforce eager threshold <= effective EOT threshold.
+- Adaptive interruption is a separate Cloud service, not a local classifier. Keep `mode=vad`
+  by default; `mode=adaptive` additionally requires `allow_cloud_inference=true` and LiveKit
+  API key/secret even for console mode. Do not construct an extra adaptive client: AgentSession
+  creates, gates and closes its own detector. AgentServer exports its configured LiveKit keys
+  into the job environment in the installed SDK, so the SDK can authenticate without this
+  module mutating `.env.local`. On unrecoverable detector errors the SDK falls back to VAD.
+  Tests inject verdicts and errors through its actual stream/event path; no Cloud access tested.
+- Native pause/resume retains pending generation for a false interruption. A committed real
+  turn cancels that speech/generation and clears queued output. The SDK trims history using the
+  sink's synchronized played transcript; no custom history repair or parallel cancellation
+  engine is added. A sink lacking pause support cannot offer the same recovery guarantee.
+- VAD/word thresholds cannot reliably classify brief acknowledgments; do not implement hardcoded
+  phrase suppression. Adaptive backchannel verdicts gate STT before the LLM. Boundary controls,
+  word/duration gates, recovery timeout (including disabled), resume and uninterruptible-audio
+  discard settings map to public InterruptionOptions. They are centralized in turns.py.
+- Preserve automatic SDK echo-cancellation warmup (normally initial 3 seconds of agent speech).
+  Native tests disable it through the public constructor because their synthetic PCM cannot
+  echo. This distinction matters for initial barge-in acceptance and is recorded in TUNING.md.
+- Public metrics supply EOU plus interruption counters/component durations; false-recovery
+  logging includes only the resumed boolean. No raw prompt, user transcript, waveform or
+  utterance is persisted. No new audio-to-stop, human listening or latency claim is inferred.
+
+Production code uses public APIs only. Tests intentionally inspect some locked SDK behavior
+and inject CPU/adaptive predictions to exercise its state machine; they should be revisited
+when upgrading. All automated Python tests now block external DNS/connections while permitting
+loopback needed by Windows asyncio. The clean-copy test strips credentials and reruns the unit
+suite in its own environment. No custom live harness is executed and no deployment performed.
+
+## Phase 4 direct speech delivery — 2026-11-02
+
+The user explicitly authorized Phase 4 offline implementation while Phase 2/3 live gates remain
+blocked. This does not authorize provider consumption, listening, recording or deployment. Keep
+humanization disabled in the example/default configuration until the real A/B gate passes.
+
+Rechecked official sources:
+
+- [Cartesia controls](https://docs.cartesia.ai/build-with-cartesia/capability-guides/volume-speed-emotion)
+- [Cartesia markup](https://docs.cartesia.ai/build-with-cartesia/capability-guides/ssml-tags)
+- [LiveKit direct Cartesia](https://docs.livekit.io/agents/models/tts/cartesia/)
+- [LiveKit expressive mode](https://docs.livekit.io/agents/models/tts/expressive/)
+
+Installed 1.8.10 source and actual in-memory WebSocket tests establish that constructor controls
+become Sonic 3 `generation_config`; each synthesis stream snapshots options, uses its context ID
+and returns its connection to the native pool. Later `update_options` affects future streams.
+The application uses coherent constructor controls, not shared mid-stream mutations. Streaming
+requests reuse the session's existing direct TTS client. No new dependency/version is needed.
+
+Emotion auto deliberately omits the emotion field. The main Groq reply supplies contextual
+language and Sonic interprets its subtext; static validated emotions remain selectable. There
+is no second classifier/request, prefix emotion protocol, random emotion routing or claimed
+deterministic pitch variation. Numeric pitch/intensity controls are absent from the installed
+API and rejected in configuration. Speed remains <=1.5 despite a looser 2.0 SDK source warning.
+
+Complete tags can reach the direct plugin's WebSocket, as the fake-wire test verifies. That
+does not prove live interpretation. Active tags/timed breaks and laughter stay disabled.
+LiveKit expressive session mode requires Inference TTS, so the session remains expressive=False;
+no change of billing path is hidden. Sonic's documented nonverbals and Inference guidance are
+path-dependent. Voice/model/listening/availability confirmation remains blocked.
+
+The external generic prompt now permits contextual style under an optional stable delivery
+policy, without mandatory fillers or invented self-corrections. Prefix filtering is restricted
+to leading hmm/uh/um/umm, with one or none per text-bearing generation, cooldown and repetition
+limits. Tool-only/empty generations do not bypass the budget. Meaningful well/actually/you-know,
+quoted text and body identifiers are preserved; broader filler constraints are prompt guidance,
+not an asserted semantic classifier. No filler is inserted where the LLM did not produce one.
+
+A bounded per-generation guard strips known speech-control tags/stage tokens from visible text
+before both TTS and history. It retains technical comparisons and unknown type expressions.
+Removed controls separate adjacent words without adding duplicate punctuation. Malformed unclosed
+known controls discard ambiguous attributes until newline/EOF; arbitrary malformed XML cannot
+be losslessly repaired. It is a speech-control guard, not a general sanitizer. Active SSML is
+unavailable. The transform preserves tool/usage metadata and input objects, closes on cancellation,
+and creates no queues, tasks, sleeps, additional clients or full-response buffer.
+
+Safe fallback is ordinary plaintext or a configurable neutral profile; invalid controls fail
+before requests. No automatic retry/replay after provider failure is introduced. The revised
+prompt has not been sent to Groq, so five prior authorized text examples do not certify it.
+HUMANIZATION.md documents settings/limits and evals/humanization_ab.md specifies the unexecuted
+listening/voice-audition protocol. CPU overhead, first-audio cost, naturalness and prosody remain
+unmeasured. Offline tests cannot close Phase 2/3/4 live gates.
+
+## Phase 5 offline performance — 2026-11-02
+
+The user explicitly authorized Phase 5 offline work despite the preceding live gates remaining
+blocked. No additional provider request, room, recording or deployment is authorized. The lock,
+prompt, direct provider routing, production endpoint thresholds and disabled humanization/
+preemptive defaults remain unchanged. No new dependency or classifier is added.
+
+Installed SDK source plus refreshed SDK_SIGNATURES.txt establish public Instructions.dynamic,
+Agent.on_user_turn_completed, SpeechHandle callbacks, AudioOutput chaining and ChatMessage.metrics.
+Current [data-hook documentation](https://docs.livekit.io/testing/observability/data/) prefers
+per-turn reports; deprecated request metrics remain a supplement for usage/cancellation/reuse.
+The observer bounds its series/active handles and emits numeric summaries with opaque correlation
+IDs. It keeps local monotonic intervals distinct from SDK intervals with wall-time anchors.
+Server sink acceptance is explicitly not measured audible latency. Retry attempts remain null;
+SDK cache zero cannot distinguish missing reporting. No inferred cache-hit rate is generated.
+
+Stable/dynamic instruction sections clarify policy versus session data. The actual Groq/OpenAI
+serializer merges them after preserving the stable text prefix; this is not an explicit cache
+breakpoint. Ten native request snapshots and their provider serialization check bounded history
+and no duplicate instruction. [Groq caching](https://console.groq.com/docs/prompt-caching) lists
+GPT-OSS 20B but promises no particular hit for this application. Cache/token/spend improvements
+and low-versus-default reasoning remain unmeasured; low reasoning/excluded reasoning is retained.
+
+Native Cartesia prewarm and same-WebSocket reuse are verified with an in-memory peer; production
+adds no custom pool or extra warmup request. Nova uses its existing long-lived STT stream. Missing
+worker model prewarm now falls back to a worker thread, verified independently of remote access.
+The SDK's [native turn handling](https://docs.livekit.io/agents/logic/turns/) handles experimental
+LLM speculation; production TTS speculation stays forbidden. Adoption, stale interim cancellation,
+humanization interaction and cleanup tests precede any future 30-turn live A/B.
+
+`scripts/benchmark.py` compares real SDK control flow with scripted recognition/delays and marker
+PCM. It uses empty credentials, no env loading and an external networking guard. Measurements
+are explicitly synthetic and profile/outcome-specific; text-only overhead is measured separately.
+PERFORMANCE.md records boundaries, rejected premature tuning/pooling/fragmentation, real-audio
+protocol and acceptance targets. PHASE_REPORT.md records exact checks and failures. Real latency,
+cache usage, cold/warm remote connection reuse, acoustic quality and capacity remain BLOCKED.
+
+## Phase 6 failure, session and security policy — 2026-11-02
+
+The user authorized offline Phase 6 implementation, not provider requests, recording or deployment.
+Phases 2–5 live gates stay blocked. Rechecked official [sessions](https://docs.livekit.io/agents/logic/sessions/),
+[events/errors](https://docs.livekit.io/reference/agents/events/),
+[fallback strategies](https://docs.livekit.io/agents/logic/fallback-strategies/) and
+[PII scope](https://docs.livekit.io/testing/observability/pii-redaction/).
+Installed shutdown/interrupt, APIConnectOptions and RoomOptions signatures are captured anew.
+
+Keep LiveKit's native streaming/cancellation and one direct chain. Terminal errors close rather
+than replaying partial speech, adding providers or making an extra apology LLM/TTS request.
+Automatic retry settings are constrained to zero: the SDK first-retry interval is 0.1 s and
+no safe jitter/Retry-After configuration is exposed here. Do not promise rate-limit-aware replay.
+Existing nonzero settings now fail validation explicitly. Recoverable SDK notifications do not
+trigger custom response generation. Fault tests retain real native stream loops and public events.
+
+One local lifecycle helper latches stop reasons, bounds startup/drain/close, escalates an expired
+native drain with public force interruption, and joins its watchdog. This avoids cancellation of
+the SDK's internal drain task, whose teardown is SDK-owned. Terminal room disconnect is separate
+from transient reconnection; RoomOptions enables linked-participant close without deleting rooms.
+Provider close attempts remain reverse ordered and individually bounded; errors propagate as
+fixed cleanup codes after remaining clients are attempted. Cooperative-cancellation limitations
+and supervisor termination grace are explicit in RELIABILITY_SECURITY.md.
+
+Per-session request and latest-input byte limits precede LLM invocation, supplementing token,
+duration/history and explicit tool-step bounds. No global conversational state or summarizer is
+added. Registry state in log filters contains only bounded redaction values, merged atomically
+so overlapping session setup cannot remove older protections. Unknown SDK message bodies/PII/
+exception payloads are suppressed; numeric core failure summaries retain category and status.
+Remote LiveKit URLs require TLS and forbid credentials/query/fragment. Config printing and
+startup guard against known secrets in noncredential text; this is not a general PII scanner.
+
+Three concurrent native sessions and deterministic timeout/partial-failure matrices test isolation,
+cleanup and unchanged streaming/humanization/interruption. Prompt-injection checks verify fixed
+policy/tool/config boundaries without claiming real model refusal. Host short-lived tokens,
+authenticated admission, tool authorization, tenant limits, voice licensing and retention remain
+documented responsibilities. No host application, Cloud redaction service or new dependency is
+introduced. Real transport recovery, quotas, capacity, socket/RSS soak and acoustic acceptance
+remain unverified; RELIABILITY_SECURITY.md gives the exact scope and remaining approvals.
+
+## Phase 7 evaluation evidence — 2026-11-02
+
+The user authorized offline testing/simulations, not live provider requests, Cloud simulations,
+recording or deployment. Runtime code, prompt, locked dependencies and disabled experiment defaults
+remain unchanged. Existing failure/streaming/turn tests are reused in a grouped runner rather
+than adding another conversational engine.
+
+Official [unit-test APIs](https://docs.livekit.io/testing/unit-tests/),
+[Agent Simulations](https://docs.livekit.io/testing/simulations/),
+[scenario format](https://docs.livekit.io/testing/simulations/write-a-scenario/) and
+[CLI debugger](https://docs.livekit.io/testing/debugger/) were rechecked. Installed public
+AgentSession.run, RunResult event assertions and no_more_events are used with scripted providers,
+output_options=None and no LLM judge. This verifies native context/event behavior, not actual model
+accuracy. There is no Python livekit.agents.testing package in the locked environment; the public
+assertion types live in voice.run_result. Signatures are captured in SDK_SIGNATURES.txt.
+
+Hosted simulations use real Cloud/media/model services. The CLI is unavailable here and the
+worker intentionally sets session_host=False. Hosted/debugger integration is therefore blocked
+on both approval and a reviewed opt-in path; it is not claimed working merely because YAML is
+prepared. No remote observation or recording default is enabled. Five generic scenarios receive
+local shape/ID checks only. The first authorized real-audio route uses a local worker/test room,
+with budget, authorized voice, input consent and separate recording approval.
+
+Generated PCM fixtures are seeded tones/noise/silence, not speech or voice samples. Local Silero
+inference on them is genuine CPU processing, while session STT/VAD verdicts remain scripted.
+No WER, naturalness, emotion or end-user latency value is inferred. Identical-text twelve-generation
+humanization A/B validates only text preservation, sparse leading fillers, punctuation and control
+selection; listening scores and real tokens remain null. Existing fake-wire Cartesia tests retain
+control/pool coverage.
+
+The offline runner strips child credentials/settings overrides and keeps only numeric categorized
+JUnit evidence, provenance/hashes and controlled A/B summaries. Failures, skips, empty categories
+and incomplete reports cannot become PASS_OFFLINE. Complete pytest remains the release gate;
+the copy test now includes only the prepared non-secret scenario template, never evaluation
+results. EVALUATION.md, evals/scenarios.md and evals/first_live_audio.md distinguish offline evidence,
+hosted preparation and actionable live gates. No later deployment/release work was started in Phase 7.
+
+## Phase 8 deployment preparation — 2026-11-02
+
+Deployment artifacts are prepared without deploying, authenticating, installing system tools or
+changing provider/humanization behavior. Docker and `lk` are unavailable. Public registry manifest
+bytes were hash-verified for pinned Python 3.12.16 slim Bookworm and uv 0.10.6 images, with amd64
+entries present. No image layers were pulled or built; Linux compatibility and vulnerability
+status remain unverified. Runtime dependencies use the unchanged uv.lock, while Debian security
+packages are resolved at build time. This is not a whole-image bit-reproducibility claim.
+
+The multi-stage image retains editable source at /app because the reusable folder's settings and
+external prompt resolve relative to src/voiceagent. A wheel-only install would break that contract.
+Only locked runtime dependencies/source/prompt/example settings enter the final non-root image.
+A deny-default Docker context, explicit COPY statements and no secret build arguments protect the
+build boundary. Runtime secrets are injected externally. Compose adds read-only rootfs, bounded
+tmpfs/logs, dropped capabilities and an init process; no automatic restart loop or exposed ports.
+Raw env-file format requires Compose >=2.30 and literal unquoted UTF-8 values. These are prepared
+contracts, not executed Docker runtime evidence.
+
+Build-time local model initialization is network-disabled and uses bundled Silero/mini models;
+the legacy all-plugin download-files workflow is avoided. Native SDK HTTP health, drain, signals,
+admission and cleanup are reused. Per-job initialization now uses the existing startup setting;
+per-job shutdown is derived as drain + 5*close + 5 seconds (60 by default), rather than the SDK's
+10-second default that can undercut the existing 55-second cooperative cleanup budget. Worker drain
+remains the native 3600 seconds; Compose allows 62 minutes. Tests use actual local SDK HTTP/pool
+startup/closure with synthetic registration and job state. No real registration, job process,
+Linux signal, call or container cleanup is inferred from those tests.
+
+The Cloud example has placeholders only; actual project/agent TOML stays ignored and out of images.
+`lk agent create` is explicitly documented as an immediate deployment, requiring approval.
+Cloud injects LIVEKIT credentials; only provider secrets and reviewed voice/settings overrides
+belong in the private secrets file. Runbooks cover target review, status/logs, rolling updates,
+secret merges, paid-plan rollback and reviewed-source redeploy on other plans. All unexecuted
+Cloud/self-host/live gates remain BLOCKED. No release/Phase 9 work is claimed complete.

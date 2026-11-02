@@ -66,8 +66,17 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         ".python-version",
         ".gitignore",
         ".dockerignore",
+        "Dockerfile",
+        "compose.yaml",
     ):
         shutil.copy2(PROJECT_ROOT / name, destination / name)
+    # Only inert deployment metadata travels with a copy, never a real Cloud binding.
+    for folder, name in (
+        ("deploy", "livekit.toml.example"),
+        ("docs", "CONTAINER_PINS.json"),
+    ):
+        (destination / folder).mkdir()
+        shutil.copy2(PROJECT_ROOT / folder / name, destination / folder / name)
     shutil.copytree(
         PROJECT_ROOT / "src",
         destination / "src",
@@ -79,6 +88,12 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
     shutil.copytree(PROJECT_ROOT / "tests" / "fixtures", destination / "tests" / "fixtures")
+    # Copy only the non-secret prepared scenario template, never local evaluation artifacts.
+    (destination / "evals").mkdir()
+    shutil.copy2(
+        PROJECT_ROOT / "evals" / "livekit_scenarios.yaml",
+        destination / "evals" / "livekit_scenarios.yaml",
+    )
     shutil.copytree(
         PROJECT_ROOT / "tests" / "unit",
         destination / "tests" / "unit",

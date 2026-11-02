@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -79,6 +80,30 @@ async def test_job_cleanup_normal_and_start_failure(settings, monkeypatch, failu
         "session_failure" if failure else "participant_disconnected"
     )
     assert len(callbacks) == 1
+
+
+async def test_fallback_model_initialization_runs_outside_event_loop(settings, monkeypatch):
+    loop_thread = threading.get_ident()
+    observed = []
+    initialized = object()
+
+    def load(_settings):
+        observed.append(threading.get_ident())
+        return initialized
+
+    monkeypatch.setattr(runtime, "load_models", load)
+
+    @asynccontextmanager
+    async def chain(_settings):
+        # Stop before any provider construction; initialization must already have run.
+        assert observed and observed[0] != loop_thread
+        raise RuntimeError("synthetic startup failure")
+        yield
+
+    monkeypatch.setattr(runtime, "provider_chain", chain)
+    ctx = SimpleNamespace(proc=SimpleNamespace(userdata={}), shutdown=Mock())
+    await runtime.run_session(ctx, settings=settings)
+    ctx.shutdown.assert_called_once_with(reason="session_failure")
 
 
 async def test_duration_limit_requests_graceful_drain():
@@ -176,10 +201,9 @@ def test_prompt_prefix_and_session_metadata_are_isolated(settings):
     prompt = session_prompt(settings)
     first = runtime.VoiceAgent(prompt, settings, SessionExtensions(metadata={"topic": "alpha"}))
     second = runtime.VoiceAgent(prompt, settings, SessionExtensions(metadata={"topic": "beta"}))
-    assert first.instructions.startswith(prompt.text)
-    assert second.instructions.startswith(prompt.text)
-    assert "alpha" not in second.instructions
-    assert "beta" not in first.instructions
+    assert first.instructions.render_static() == second.instructions.render_static() == prompt.text
+    assert "alpha" in first.instructions.dynamic and "alpha" not in second.instructions.dynamic
+    assert "beta" in second.instructions.dynamic and "beta" not in first.instructions.dynamic
 
 
 def test_server_registers_configured_dispatch_without_provider_construction(settings, monkeypatch):

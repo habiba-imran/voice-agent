@@ -3,6 +3,19 @@
 Reusable Python source folder for a direct Deepgram → Groq → Cartesia worker using LiveKit Agents.
 Phase 0 and Phase 1 are verified. The Phase 2 baseline is implemented and tested offline;
 real Deepgram/Cartesia audio and LiveKit room acceptance remain blocked on approval.
+Phase 3 adds selectable turn profiles and native interruption/recovery controls with offline
+behavioral tests. Its acoustic acceptance remains blocked. See [turn tuning](docs/TUNING.md).
+Phase 4 adds optional direct-provider delivery controls and streaming text guards, off by default.
+See [humanization](docs/HUMANIZATION.md); listening, emotion and prosody acceptance remain blocked.
+Phase 5 adds bounded numeric timing summaries and an offline native-session benchmark. See
+[performance](docs/PERFORMANCE.md) for definitions, limitations and the future real-audio protocol.
+Phase 6 adds bounded startup/drain/cleanup, terminal disconnect handling, request/input limits and
+stricter logging/failure policy. See [reliability and security](docs/RELIABILITY_SECURITY.md).
+Phase 7 groups offline simulations, supported SDK run assertions and reproducible signal fixtures.
+See [evaluation](docs/EVALUATION.md) and the [first live-audio checklist](evals/first_live_audio.md).
+Phase 8 prepares a pinned non-root image and deployment runbooks. See [local/Docker operations](docs/SELF_HOST.md)
+and [LiveKit Cloud deployment](docs/DEPLOY_LIVEKIT.md). Docker/CLI are unavailable; images and deployment
+remain unverified, and Cloud deployment requires explicit approval.
 No voice quality, latency, deployment, or production-readiness claim is made.
 
 Use Python 3.12 and uv. Operate from this directory, including when nested in another repository:
@@ -28,7 +41,7 @@ paths use VOICEAGENT_CONFIG_PATH and VOICEAGENT_PROMPT_PATH; relative paths reso
 Blank environment values are treated as absent. Settings load once per worker; restart after
 editing config. Prompt.md is read once for each new session; existing sessions retain a snapshot.
 
-The generic prompt provides a stable prefix. Bounded session metadata is appended as untrusted
+The generic prompt provides a stable prefix. Bounded session metadata follows as untrusted
 data; it must contain no secrets. The SDK truncates each LLM request to recent conversation items
 while preserving leading instructions. No summary/classifier LLM is used. Groq reasoning is
 excluded through the verified chat API. Cache hits are automatic when supported, not guaranteed.
@@ -44,12 +57,13 @@ driver (`--connect-addr`), not a bare standalone `agent.py console` command. Liv
 unavailable here; actual console, registration and room audio have not been tested.
 
 The runtime uses direct provider instances and explicit local Silero VAD. Constructing a real
-AgentSession starts SDK provider prewarming, so offline tests mock the session and clients.
+AgentSession starts SDK provider prewarming. Factory tests mock construction; behavioral tests
+run the actual session with synthetic local provider implementations and an in-memory PCM sink.
 Clients are reused within a session and closed on exit. Default session/idle limits are 1800/120
-seconds; SDK request retries default to zero. The SDK owns turn detection and cancellation.
+seconds; automatic request retries are constrained to zero. The SDK owns turn detection and cancellation.
 Recording and session-host capture are explicitly disabled; transcript persistence has no sink.
 Error logging omits payloads and redacts configured credentials. Full provider-fault, reconnect,
-acoustic interruption, quota and concurrency acceptance belong to later phases.
+acoustic interruption, quota and concurrency acceptance remain unverified.
 
 On this Windows machine, installation needed a hash-verified offline wheelhouse because large
 official PyPI downloads stalled. The final locked sync and dependency check pass. Recovery tools

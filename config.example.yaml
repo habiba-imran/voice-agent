@@ -5,6 +5,7 @@ stt:
   keyterms: []
   eot_threshold: null
   eager_eot_threshold: null
+  eot_timeout_ms: null
 llm:
   model: openai/gpt-oss-20b
   reasoning_effort: low
@@ -20,22 +21,39 @@ tts:
   volume: 1.0
 listening:
   turn_detection: vad
+  endpointing_mode: fixed
+  endpointing_alpha: 0.9
   min_endpoint_delay: 0.5
   max_endpoint_delay: 3.0
+  vad:
+    min_speech_duration: 0.05
+    min_silence_duration: 0.55
+    prefix_padding_duration: 0.5
+    activation_threshold: 0.5
 interruption:
   enabled: true
   mode: vad
+  allow_cloud_inference: false
   min_duration: 0.5
   min_words: 0
   false_interruption_timeout: 2.0
   resume_false_interruption: true
+  discard_audio_if_uninterruptible: true
+  backchannel_boundary: [1.0, 1.0]
 latency:
   preemptive_llm: false
   preemptive_tts: false
   metrics: true
+  metric_window: 256
 humanization:
   enabled: false
+  default_style: conversational
+  emotion: auto
+  speed: null
+  volume: null
   disfluencies: contextual
+  max_leading_fillers_per_turn: 1
+  filler_cooldown_turns: 3
   pauses: punctuation
   pace: baseline
   emotional_range: baseline
@@ -49,9 +67,15 @@ runtime:
   idle_timeout_seconds: 120
   hook_timeout_seconds: 2
   log_level: INFO
+  startup_timeout_seconds: 30
+  drain_timeout_seconds: 5
+  shutdown_timeout_seconds: 10
 limits:
   request_timeout_seconds: 10
   max_retries: 0
+  max_tool_steps: 3
+  max_llm_requests: 100
+  max_input_bytes: 8192
   retry_interval_seconds: 2
   max_prompt_bytes: 32768
   max_metadata_bytes: 2048

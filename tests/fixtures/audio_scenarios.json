@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "sample_rate": 16000,
+  "channels": 1,
+  "frame_ms": 20,
+  "origin": "synthetic_signal_not_speech",
+  "scenarios": [
+    {"id": "silence", "seed": 100, "spoken_script": "Remain silent.", "segments": [{"kind": "silence", "duration_ms": 1200}]},
+    {"id": "hesitation", "seed": 101, "spoken_script": "Say: Let me think. Pause one second. Then say: Thursday works.", "segments": [{"kind": "tone", "duration_ms": 800}, {"kind": "silence", "duration_ms": 1000}, {"kind": "tone", "duration_ms": 700}]},
+    {"id": "background_noise", "seed": 102, "spoken_script": "Say: Explain a compiler in two sentences, with steady background noise.", "segments": [{"kind": "noise", "duration_ms": 400}, {"kind": "mixed", "duration_ms": 1600}, {"kind": "noise", "duration_ms": 400}]},
+    {"id": "false_interruption", "seed": 103, "spoken_script": "During a long reply, make a brief incidental noise without speaking a request.", "segments": [{"kind": "silence", "duration_ms": 300}, {"kind": "noise", "duration_ms": 200}, {"kind": "silence", "duration_ms": 800}]},
+    {"id": "barge_in", "seed": 104, "spoken_script": "During a long reply, say: Wait, stop. I meant Thursday.", "segments": [{"kind": "tone", "duration_ms": 400}, {"kind": "overlap", "duration_ms": 800}, {"kind": "silence", "duration_ms": 400}]},
+    {"id": "rapid_speech", "seed": 105, "spoken_script": "Say rapidly but clearly: The value is 42.5, and the identifier is AB_92-x.", "segments": [{"kind": "tone", "duration_ms": 160}, {"kind": "silence", "duration_ms": 40}, {"kind": "tone", "duration_ms": 160}, {"kind": "silence", "duration_ms": 40}, {"kind": "tone", "duration_ms": 160}, {"kind": "silence", "duration_ms": 40}, {"kind": "tone", "duration_ms": 160}]}
+  ]
+}

@@ -21,7 +21,16 @@ relative custom prompt/config paths also resolve from here, not from their enclo
 Edit prompt.md without changing the provider/orchestration code. Each new session takes its own
 immutable prompt snapshot; existing sessions retain the old text. Configuration is a startup
 snapshot, so restart the worker after changing config. The baseline history policy is 24 recent
-messages, to be enforced by the Phase 2 LiveKit integration rather than a separate LLM summarizer.
+messages, enforced at the LiveKit LLM node without a separate summarizer.
+
+Turn profiles, Silero settings, endpointing and native interruption controls are documented in
+[TUNING.md](TUNING.md). Defaults remain Nova-3 + VAD. Selectable local audio turn detection uses
+the bundled `v1-mini` model; Flux uses STTv2 and its own EOT. Adaptive interruption handling
+requires explicit opt-in and LiveKit Cloud access even when the worker is independently hosted.
+Copying the folder does not authorize provider consumption or change existing credentials.
+Optional Phase 4 controls and limits are documented in [HUMANIZATION.md](HUMANIZATION.md).
+Humanization stays off by default and uses the same direct providers and native turn machinery.
+The real-audio comparison protocol is in evals/humanization_ab.md; no listening results are implied.
 
 ## Host extension boundary
 
@@ -51,6 +60,12 @@ semantics. Do not put credentials or personal data in session metadata.
 The host supplies its own authentication, short-lived participant tokens, frontend if any, and
 application-specific tools/storage. None of those are dependencies of this folder's configuration
 and prompt system. No host app is implemented here.
+
+Apply the admission/token/tool-authorization and capacity responsibilities in
+[RELIABILITY_SECURITY.md](RELIABILITY_SECURITY.md). Phase 6 rejects automatic nonzero retries,
+requires TLS for remote room URLs, and adds configurable startup/drain/shutdown and input/request
+budgets. Known secrets accidentally placed in prompts or session metadata fail startup. These
+offline safeguards do not certify live recovery, provider quota or prompt-injection resistance.
 
 ## Deployment boundary
 

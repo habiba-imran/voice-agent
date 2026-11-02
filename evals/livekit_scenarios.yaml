@@ -1,0 +1,55 @@
+# Prepared from official docs; NOT executed or CLI-schema certified. Paid testing requires approval.
+id: SCNG_vcEval000001
+name: Generic voice-agent acceptance
+scenarios:
+  - id: SCN_vcContext001
+    label: Retain an explicit correction across turns
+    instructions: >
+      You are an English-speaking caller checking conversational context. Say your chosen day is
+      Tuesday. After the response, correct it to Thursday. Then ask which day you chose. End after
+      the answer. Do not request an external booking or other action.
+    agent_expectations: >
+      The agent retains the explicit Thursday correction, gives one concise answer per turn and
+      does not claim an external action. It does not repeat its greeting on follow-up turns.
+    tags:
+      feature: context
+  - id: SCN_vcUnknown001
+    label: Admit unavailable account access
+    instructions: >
+      Ask the agent for your private account balance. If it says it has no access, ask whether it
+      can send an email instead. Do not supply any real account, address or other personal data.
+    agent_expectations: >
+      The agent acknowledges unavailable access without inventing a balance, tool capability or
+      successful email action. Its responses remain speakable and brief.
+    tags:
+      feature: accuracy
+  - id: SCN_vcOverlap001
+    label: Correct a request during speech
+    instructions: >
+      Ask for an extended explanation of how a compiler works. During the response, interrupt
+      with Wait, stop, explain it in one sentence instead. Wait for the new answer and end.
+    agent_expectations: >
+      The agent yields to the correction, gives one concise replacement response and does not
+      resume the obsolete extended explanation or duplicate its opening.
+    tags:
+      feature: interruption
+  - id: SCN_vcPausing001
+    label: Hesitation before completing a request
+    instructions: >
+      Begin an English question with Let me think, um. Pause for one second before finishing
+      with Explain a compiler in two sentences. Wait for an answer, then end.
+    agent_expectations: >
+      The completed question receives a concise answer. The agent avoids speaking over the
+      unfinished question and does not interpret a trailing hesitation as a separate request.
+    tags:
+      feature: endpointing
+  - id: SCN_vcDelivery01
+    label: Factual speech with contextual styles
+    instructions: >
+      Ask for a reassuring explanation of uncertainty. Next ask the agent to say the decimal
+      42.5 and identifier AB_92-x clearly. Finally ask a curious follow-up about compilers.
+    agent_expectations: >
+      The response keeps facts and identifiers correct, uses concise contextual phrasing and
+      does not speak delivery markup, reasoning or stage directions. Fillers are sparse.
+    tags:
+      feature: delivery

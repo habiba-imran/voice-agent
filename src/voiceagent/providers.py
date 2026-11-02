@@ -2,44 +2,67 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, field
 
 from livekit.plugins import cartesia, deepgram, groq
 
-from .settings import ConfigurationError, Settings
+from .expression import tts_controls
+from .settings import Settings
+
+logger = logging.getLogger(__name__)
+
+
+class ProviderCleanupError(RuntimeError):
+    """A fixed cleanup failure code, with no provider exception payload."""
+
+
+async def close_client(client, component, timeout_seconds):
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            await client.aclose()
+    except TimeoutError:
+        logger.error("provider_cleanup_timeout", extra={"component": component})
+        raise ProviderCleanupError("provider_cleanup_timeout") from None
+    except Exception:
+        logger.error("provider_cleanup_failed", extra={"component": component})
+        raise ProviderCleanupError("provider_cleanup_failed") from None
 
 
 @dataclass(frozen=True)
 class ProviderChain:
-    stt: deepgram.STT = field(repr=False)
+    stt: deepgram.STT | deepgram.STTv2 = field(repr=False)
     llm: groq.LLM = field(repr=False)
     tts: cartesia.TTS = field(repr=False)
 
 
-def validate_baseline(settings: Settings) -> None:
-    if settings.stt.model != "nova-3" or settings.listening.turn_detection != "vad":
-        raise ConfigurationError("Phase 2 requires nova-3 and vad; other profiles await Phase 3")
-    if settings.humanization.enabled:
-        raise ConfigurationError("Keep humanization disabled until Phase 4 audio verification")
-    if settings.latency.preemptive_llm:
-        raise ConfigurationError("Keep preemptive generation disabled until Phase 5 comparison")
-
-
 @asynccontextmanager
 async def provider_chain(settings: Settings):
-    validate_baseline(settings)
     settings.require_credentials(room=False)
     async with AsyncExitStack() as cleanup:
-        stt = deepgram.STT(
+        stt_options = dict(
             api_key=settings.credentials.deepgram_api_key.get_secret_value(),
             model=settings.stt.model,
-            language=settings.stt.language,
             keyterm=list(settings.stt.keyterms),
-            interim_results=True,
-            filler_words=True,
         )
-        cleanup.push_async_callback(stt.aclose)
+        if settings.stt.model == "nova-3":
+            stt = deepgram.STT(
+                **stt_options,
+                language=settings.stt.language,
+                interim_results=True,
+                filler_words=True,
+            )
+        else:
+            flux_options = settings.stt.model_dump(
+                include={"eot_threshold", "eager_eot_threshold", "eot_timeout_ms"},
+                exclude_none=True,
+            )
+            stt = deepgram.STTv2(**stt_options, **flux_options)
+        cleanup.push_async_callback(
+            close_client, stt, "stt", settings.runtime.shutdown_timeout_seconds
+        )
         model = groq.LLM(
             api_key=settings.credentials.groq_api_key.get_secret_value(),
             model=settings.llm.model,
@@ -48,15 +71,17 @@ async def provider_chain(settings: Settings):
             max_completion_tokens=settings.llm.max_output_tokens,
             max_retries=0,
         )
-        cleanup.push_async_callback(model.aclose)
+        cleanup.push_async_callback(
+            close_client, model, "llm", settings.runtime.shutdown_timeout_seconds
+        )
         speech = cartesia.TTS(
             api_key=settings.credentials.cartesia_api_key.get_secret_value(),
             model=settings.tts.model,
             voice=str(settings.tts.voice_id),
             language=settings.tts.language,
-            speed=settings.tts.speed,
-            volume=settings.tts.volume,
-            emotion=settings.tts.emotion,
+            **tts_controls(settings),
         )
-        cleanup.push_async_callback(speech.aclose)
+        cleanup.push_async_callback(
+            close_client, speech, "tts", settings.runtime.shutdown_timeout_seconds
+        )
         yield ProviderChain(stt, model, speech)

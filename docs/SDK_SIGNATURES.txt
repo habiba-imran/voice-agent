@@ -13,11 +13,57 @@ livekit.agents.worker.AgentServer(*, job_executor_type: 'JobExecutorType' = <Job
 
 livekit.agents.worker.AgentServer.rtc_session(self, func: 'Callable[[JobContext], Awaitable[None]] | None' = None, *, agent_name: 'str' = '', type: 'ServerType' = <ServerType.ROOM: 0>, on_request: 'Callable[[JobRequest], Any] | None' = None, on_session_end: 'Callable[[JobContext], Any] | None' = None, on_simulation_end: 'Callable[[SimulationContext], Any] | None' = None) -> 'Callable[[JobContext], Awaitable[None]] | Callable[[Callable[[JobContext], Awaitable[None]]], Callable[[JobContext], Awaitable[None]]]'
 
+livekit.agents.worker.AgentServer.run(self, *, devmode: 'bool' = False, unregistered: 'bool' = False) -> 'None'
+
+livekit.agents.worker.AgentServer.drain(self, timeout: 'NotGivenOr[int | None]' = NOT_GIVEN) -> 'None'
+
+livekit.agents.worker.AgentServer.aclose(self) -> 'None'
+
 livekit.agents.voice.agent_session.AgentSession(*, stt: 'NotGivenOr[stt.STT | STTModels | str]' = NOT_GIVEN, vad: 'NotGivenOr[vad.VAD | None]' = NOT_GIVEN, llm: 'NotGivenOr[llm.LLM | llm.RealtimeModel | llm.DuplexModel | LLMModels | RealtimeModels | str]' = NOT_GIVEN, tts: 'NotGivenOr[tts.TTS | TTSModels | str]' = NOT_GIVEN, turn_handling: 'NotGivenOr[TurnHandlingOptions]' = NOT_GIVEN, stt_context_options: 'NotGivenOr[STTContextOptions]' = NOT_GIVEN, tools: 'NotGivenOr[list[llm.Tool | llm.Toolset]]' = NOT_GIVEN, tool_handling: 'NotGivenOr[ToolHandlingOptions]' = NOT_GIVEN, max_tool_steps: 'int' = 3, use_tts_aligned_transcript: 'NotGivenOr[bool]' = NOT_GIVEN, tts_text_transforms: 'NotGivenOr[Sequence[TextTransforms] | None]' = NOT_GIVEN, min_consecutive_speech_delay: 'float' = 0.0, expressive: 'bool | ExpressiveOptions' = False, userdata: 'NotGivenOr[Userdata_T]' = NOT_GIVEN, video_sampler: 'NotGivenOr[_VideoSampler | None]' = NOT_GIVEN, aec_warmup_duration: 'NotGivenOr[float | None]' = NOT_GIVEN, ivr_detection: 'bool' = False, user_away_timeout: 'float | None' = 15.0, transcription_timeout: 'float | None' = None, session_close_transcript_timeout: 'float' = 2.0, conn_options: 'NotGivenOr[SessionConnectOptions]' = NOT_GIVEN, loop: 'asyncio.AbstractEventLoop | None' = None, preemptive_generation: 'NotGivenOr[bool | PreemptiveGenerationOptions]' = NOT_GIVEN, min_endpointing_delay: 'NotGivenOr[float]' = NOT_GIVEN, max_endpointing_delay: 'NotGivenOr[float]' = NOT_GIVEN, false_interruption_timeout: 'NotGivenOr[float | None]' = NOT_GIVEN, turn_detection: 'NotGivenOr[TurnDetectionMode]' = NOT_GIVEN, discard_audio_if_uninterruptible: 'NotGivenOr[bool]' = NOT_GIVEN, min_interruption_duration: 'NotGivenOr[float]' = NOT_GIVEN, min_interruption_words: 'NotGivenOr[int]' = NOT_GIVEN, allow_interruptions: 'NotGivenOr[bool]' = NOT_GIVEN, resume_false_interruption: 'NotGivenOr[bool]' = NOT_GIVEN, agent_false_interruption_timeout: 'NotGivenOr[float | None]' = NOT_GIVEN, mcp_servers: 'NotGivenOr[list[mcp.MCPServer]]' = NOT_GIVEN, keyterms_options: 'NotGivenOr[KeytermsOptions]' = NOT_GIVEN) -> 'None'
 
 livekit.agents.voice.agent_session.AgentSession.start(self, agent: 'Agent', *, capture_run: 'bool' = False, room: 'NotGivenOr[rtc.Room]' = NOT_GIVEN, room_options: 'NotGivenOr[room_io.RoomOptions]' = NOT_GIVEN, session_host: 'NotGivenOr[bool]' = NOT_GIVEN, record: 'NotGivenOr[bool | RecordingOptions]' = NOT_GIVEN, room_input_options: 'NotGivenOr[room_io.RoomInputOptions]' = NOT_GIVEN, room_output_options: 'NotGivenOr[room_io.RoomOutputOptions]' = NOT_GIVEN) -> 'RunResult | None'
 
 livekit.agents.voice.agent_session.AgentSession.aclose(self) -> 'None'
+
+livekit.agents.voice.agent_session.AgentSession.shutdown(self, *, drain: 'bool' = True) -> 'None'
+
+livekit.agents.types.APIConnectOptions(max_retry: int = 3, retry_interval: float = 2.0, timeout: float = 10.0, liveness_timeout: float = 6.0) -> None
+
+livekit.agents.voice.room_io.types.RoomOptions(text_input: 'NotGivenOr[TextInputOptions | bool]' = NOT_GIVEN, audio_input: 'NotGivenOr[AudioInputOptions | bool]' = NOT_GIVEN, video_input: 'NotGivenOr[VideoInputOptions | bool]' = NOT_GIVEN, audio_output: 'NotGivenOr[AudioOutputOptions | bool]' = NOT_GIVEN, text_output: 'NotGivenOr[TextOutputOptions | bool]' = NOT_GIVEN, participant_kinds: 'NotGivenOr[list[rtc.ParticipantKind.ValueType]]' = NOT_GIVEN, participant_identity: 'NotGivenOr[str]' = NOT_GIVEN, close_on_disconnect: 'bool' = True, delete_room_on_close: 'bool' = False) -> None
+
+livekit.agents.voice.agent_session.AgentSession.interrupt(self, *, force: 'bool' = False) -> 'asyncio.Future[None]'
+
+livekit.agents.voice.agent_session.AgentSession.generate_reply(self, *, user_input: 'NotGivenOr[str | llm.ChatMessage]' = NOT_GIVEN, instructions: 'NotGivenOr[str | Instructions]' = NOT_GIVEN, tool_choice: 'NotGivenOr[llm.ToolChoice]' = NOT_GIVEN, tools: 'NotGivenOr[list[str]]' = NOT_GIVEN, allow_interruptions: 'NotGivenOr[bool]' = NOT_GIVEN, chat_ctx: 'NotGivenOr[ChatContext]' = NOT_GIVEN, input_modality: "Literal['text', 'audio']" = 'text') -> 'SpeechHandle'
+
+livekit.agents.voice.agent_session.AgentSession.run(self, *, user_input: 'str', input_modality: "Literal['text', 'audio']" = 'text', output_type: 'type[Run_T] | None' = None, output_options: 'NotGivenOr[RunOutputOptions | None]' = NOT_GIVEN) -> 'RunResult[Run_T]'
+
+livekit.agents.voice.run_result.RunAssert.next_event(self, *, type: "Literal['message', 'function_call', 'function_call_output', 'agent_handoff'] | None" = None) -> 'EventAssert | ChatMessageAssert | FunctionCallAssert | FunctionCallOutputAssert | AgentHandoffAssert'
+
+livekit.agents.voice.run_result.RunAssert.no_more_events(self) -> 'None'
+
+livekit.agents.voice.run_result.ChatMessageAssert.event(self) -> 'ChatMessageEvent'
+
+livekit.agents.voice.speech_handle.SpeechHandle.interrupt(self, *, force: 'bool' = False, source: 'InterruptionSource' = 'programmatic') -> 'SpeechHandle'
+
+livekit.agents.voice.speech_handle.SpeechHandle.add_done_callback(self, callback: 'Callable[[SpeechHandle], None]') -> 'None'
+
+livekit.agents.voice.speech_handle.SpeechHandle.remove_done_callback(self, callback: 'Callable[[SpeechHandle], None]') -> 'None'
+
+livekit.agents.llm.chat_context.Instructions(common: 'str' = '', *, audio: 'str | None' = None, text: 'str | None' = None, dynamic: 'str | None' = None) -> 'None'
+
+livekit.agents.voice.agent.Agent.on_user_turn_completed(self, turn_ctx: 'llm.ChatContext', new_message: 'llm.ChatMessage') -> 'None'
+
+livekit.agents.inference.eot.detector.TurnDetector(*, version: 'NotGivenOr[TurnDetectorVersions]' = NOT_GIVEN, unlikely_threshold: 'NotGivenOr[float | dict[LanguageCode | str, float]]' = NOT_GIVEN, backchannel_threshold: 'NotGivenOr[float | dict[LanguageCode | str, float]]' = NOT_GIVEN, base_url: 'NotGivenOr[str]' = NOT_GIVEN, api_key: 'NotGivenOr[str]' = NOT_GIVEN, api_secret: 'NotGivenOr[str]' = NOT_GIVEN, sample_rate: 'int' = 16000, local_fallback: 'bool' = True, http_session: 'aiohttp.ClientSession | None' = None, conn_options: 'APIConnectOptions' = APIConnectOptions(max_retry=3, retry_interval=2.0, timeout=10.0, liveness_timeout=6.0)) -> 'None'
+
+livekit.agents.inference.interruption.AdaptiveInterruptionDetector(*, threshold: 'NotGivenOr[float]' = NOT_GIVEN, min_interruption_duration: 'float' = 0.05, max_audio_duration: 'float' = 3, audio_prefix_duration: 'float' = 1.0, detection_interval: 'float' = 0.1, inference_timeout: 'float' = 0.7, base_url: 'str | None' = None, api_key: 'str | None' = None, api_secret: 'str | None' = None, http_session: 'aiohttp.ClientSession | None' = None) -> 'None'
+
+livekit.agents.voice.io.AudioOutput(*, label: 'str', capabilities: 'AudioOutputCapabilities', next_in_chain: 'AudioOutput | None' = None, sample_rate: 'int | None' = None) -> 'None'
+
+livekit.agents.voice.io.AudioOutput.pause(self) -> 'None'
+
+livekit.agents.voice.io.AudioOutput.resume(self) -> 'None'
+
+livekit.agents.voice.io.AudioOutput.clear_buffer(self) -> 'None'
 
 livekit.agents.voice.agent.Agent(*, instructions: 'str | Instructions', id: 'str | None' = None, chat_ctx: 'NotGivenOr[llm.ChatContext | None]' = NOT_GIVEN, tools: 'list[llm.Tool | llm.Toolset] | None' = None, stt: 'NotGivenOr[stt.STT | STTModels | str | None]' = NOT_GIVEN, vad: 'NotGivenOr[vad.VAD | None]' = NOT_GIVEN, turn_handling: 'NotGivenOr[TurnHandlingOptions]' = NOT_GIVEN, tool_handling: 'NotGivenOr[ToolHandlingOptions]' = NOT_GIVEN, llm: 'NotGivenOr[llm.LLM | llm.RealtimeModel | llm.DuplexModel | LLMModels | RealtimeModels | str | None]' = NOT_GIVEN, tts: 'NotGivenOr[tts.TTS | TTSModels | str | None]' = NOT_GIVEN, expressive: 'NotGivenOr[bool | ExpressiveOptions]' = NOT_GIVEN, min_consecutive_speech_delay: 'NotGivenOr[float]' = NOT_GIVEN, use_tts_aligned_transcript: 'NotGivenOr[bool]' = NOT_GIVEN, turn_detection: 'NotGivenOr[TurnDetectionMode | None]' = NOT_GIVEN, min_endpointing_delay: 'NotGivenOr[float]' = NOT_GIVEN, max_endpointing_delay: 'NotGivenOr[float]' = NOT_GIVEN, allow_interruptions: 'NotGivenOr[bool]' = NOT_GIVEN, mcp_servers: 'NotGivenOr[list[mcp.MCPServer] | None]' = NOT_GIVEN) -> 'None'
 
@@ -31,6 +77,14 @@ livekit.plugins.groq.services.LLM(*, model: 'str | LLMModels' = 'llama-3.3-70b-v
 
 livekit.plugins.cartesia.tts.TTS(*, api_key: 'str | None' = None, model: 'TTSModels | str' = 'sonic-3', language: 'str | None' = 'en', encoding: 'TTSEncoding' = 'pcm_s16le', voice: 'str | list[float]' = 'f786b574-daa5-4673-aa0c-cbe3e8534c02', speed: 'TTSVoiceSpeed | float | None' = None, emotion: 'TTSVoiceEmotion | str | list[TTSVoiceEmotion | str] | None' = None, volume: 'float | None' = None, sample_rate: 'int' = 24000, word_timestamps: 'bool' = True, add_phoneme_timestamps: 'bool' = False, use_normalized_timestamps: 'bool' = False, pronunciation_dict_id: 'str | None' = None, http_session: 'aiohttp.ClientSession | None' = None, tokenizer: 'NotGivenOr[tokenize.SentenceTokenizer]' = NOT_GIVEN, text_pacing: 'tts.SentenceStreamPacer | bool' = False, base_url: 'str' = 'https://api.cartesia.ai', api_version: 'str' = '2025-04-16') -> 'None'
 
+livekit.plugins.cartesia.tts.TTS.update_options(self, *, model: 'NotGivenOr[TTSModels | str]' = NOT_GIVEN, language: 'NotGivenOr[str | None]' = NOT_GIVEN, voice: 'NotGivenOr[str | list[float]]' = NOT_GIVEN, speed: 'NotGivenOr[TTSVoiceSpeed | float]' = NOT_GIVEN, emotion: 'NotGivenOr[TTSVoiceEmotion | str | list[TTSVoiceEmotion | str]]' = NOT_GIVEN, volume: 'NotGivenOr[float]' = NOT_GIVEN, pronunciation_dict_id: 'NotGivenOr[str]' = NOT_GIVEN, add_phoneme_timestamps: 'NotGivenOr[bool]' = NOT_GIVEN, use_normalized_timestamps: 'NotGivenOr[bool]' = NOT_GIVEN, api_version: 'NotGivenOr[str]' = NOT_GIVEN) -> 'None'
+
+livekit.plugins.cartesia.tts.TTS.stream(self, *, conn_options: 'APIConnectOptions' = APIConnectOptions(max_retry=3, retry_interval=2.0, timeout=10.0, liveness_timeout=6.0)) -> 'SynthesizeStream'
+
+livekit.plugins.cartesia.tts.TTS.aclose(self) -> 'None'
+
+livekit.agents.voice.agent.Agent.default.tts_node(agent: 'Agent', text: 'AsyncIterable[str]', model_settings: 'ModelSettings') -> 'AsyncGenerator[rtc.AudioFrame, None]'
+
 livekit.plugins.silero.vad.VAD.load(*, min_speech_duration: 'float' = 0.05, min_silence_duration: 'float' = 0.55, prefix_padding_duration: 'float' = 0.5, max_buffered_speech: 'float' = 60.0, activation_threshold: 'float' = 0.5, sample_rate: 'Literal[8000, 16000]' = 16000, force_cpu: 'bool' = True, onnx_file_path: 'NotGivenOr[Path | str]' = NOT_GIVEN, deactivation_threshold: 'NotGivenOr[float]' = NOT_GIVEN, padding_duration: 'NotGivenOr[float]' = NOT_GIVEN) -> 'agents.vad.VAD'
 
 TurnHandlingOptions: {'turn_detection': ForwardRef('TurnDetectionMode | None', module='livekit.agents.voice.turn'), 'endpointing': ForwardRef('EndpointingOptions', module='livekit.agents.voice.turn'), 'interruption': ForwardRef('InterruptionOptions', module='livekit.agents.voice.turn'), 'preemptive_generation': ForwardRef('PreemptiveGenerationOptions', module='livekit.agents.voice.turn'), 'user_turn_limit': ForwardRef('UserTurnLimitOptions', module='livekit.agents.voice.turn')}
@@ -40,3 +94,11 @@ InterruptionOptions: {'enabled': ForwardRef('bool', module='livekit.agents.voice
 EndpointingOptions: {'mode': ForwardRef("Literal['fixed', 'dynamic']", module='livekit.agents.voice.turn'), 'min_delay': ForwardRef('float', module='livekit.agents.voice.turn'), 'max_delay': ForwardRef('float', module='livekit.agents.voice.turn'), 'alpha': ForwardRef('float', module='livekit.agents.voice.turn')}
 
 PreemptiveGenerationOptions: {'enabled': ForwardRef('bool', module='livekit.agents.voice.turn'), 'preemptive_tts': ForwardRef('bool', module='livekit.agents.voice.turn'), 'max_speech_duration': ForwardRef('float', module='livekit.agents.voice.turn'), 'max_retries': ForwardRef('int', module='livekit.agents.voice.turn')}
+
+MetricsReport: {'started_speaking_at': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'stopped_speaking_at': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'transcription_delay': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'end_of_turn_delay': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'on_user_turn_completed_delay': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'llm_node_ttft': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'llm_node_tps': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'llm_node_ttfs': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'tts_node_ttfb': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'playback_latency': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'e2e_latency': ForwardRef('float', module='livekit.agents.llm.chat_context'), 'provider_request_ids': ForwardRef('list[str]', module='livekit.agents.llm.chat_context'), 'llm_metadata': ForwardRef('MetricsMetadata', module='livekit.agents.llm.chat_context'), 'tts_metadata': ForwardRef('MetricsMetadata', module='livekit.agents.llm.chat_context'), 'stt_metadata': ForwardRef('MetricsMetadata', module='livekit.agents.llm.chat_context')}
+
+LLMMetrics: {'type': "Literal['llm_metrics']", 'label': 'str', 'request_id': 'str', 'timestamp': 'float', 'duration': 'float', 'ttft': 'float', 'cancelled': 'bool', 'completion_tokens': 'int', 'prompt_tokens': 'int', 'prompt_cached_tokens': 'int', 'cache_creation_tokens': 'int', 'reasoning_tokens': 'int', 'total_tokens': 'int', 'tokens_per_second': 'float', 'speech_id': 'str | None', 'metadata': 'Metadata | None'}
+
+STTMetrics: {'type': "Literal['stt_metrics']", 'label': 'str', 'request_id': 'str', 'timestamp': 'float', 'duration': 'float', 'audio_duration': 'float', 'streamed': 'bool', 'input_tokens': 'int', 'output_tokens': 'int', 'total_tokens': 'int', 'input_audio_tokens': 'int', 'acquire_time': 'float', 'connection_reused': 'bool', 'metadata': 'Metadata | None'}
+
+TTSMetrics: {'type': "Literal['tts_metrics']", 'label': 'str', 'request_id': 'str', 'timestamp': 'float', 'ttfb': 'float', 'duration': 'float', 'audio_duration': 'float', 'cancelled': 'bool', 'characters_count': 'int', 'input_tokens': 'int', 'output_tokens': 'int', 'streamed': 'bool', 'acquire_time': 'float', 'connection_reused': 'bool', 'segment_id': 'str | None', 'speech_id': 'str | None', 'metadata': 'Metadata | None'}

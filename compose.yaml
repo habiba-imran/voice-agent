@@ -1,0 +1,26 @@
+# Requires Docker Compose >=2.30 for literal/raw env-file values. Never commit the env file.
+services:
+  voiceagent:
+    image: voiceagent-core:local
+    platform: linux/amd64
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - path: ${VOICEAGENT_ENV_FILE:-.env.local}
+        required: true
+        format: raw
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,size=256m,mode=1777
+      - /home/voiceagent/.cache:rw,nosuid,size=128m,uid=10001,gid=10001,mode=0700
+    stop_signal: SIGTERM
+    stop_grace_period: 62m
+    restart: "no"
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"

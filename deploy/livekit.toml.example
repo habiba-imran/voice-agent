@@ -1,0 +1,7 @@
+# Inert template only. The approved `lk agent create` workflow generates livekit.toml.
+# Never copy another project's real deployment binding into this reusable folder.
+[project]
+subdomain = "REPLACE_WITH_APPROVED_PROJECT"
+
+[agent]
+id = "REPLACE_WITH_GENERATED_AGENT_ID"

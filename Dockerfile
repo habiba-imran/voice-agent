@@ -18,6 +18,7 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --no-dev --no-install-project --python /usr/local/bin/python
 COPY src/ ./src/
 COPY agent.py prompt.md config.example.yaml ./
+COPY customization/agent.yaml customization/prompt.md ./customization/
 # Editable source is intentional: prompt/config paths resolve from this copied project root.
 RUN uv sync --locked --no-dev --python /usr/local/bin/python
 COPY scripts/prepare_models.py ./scripts/prepare_models.py
@@ -30,6 +31,7 @@ RUN groupadd --gid 10001 voiceagent \
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/src /app/src
 COPY --from=build /app/agent.py /app/prompt.md /app/config.example.yaml /app/
+COPY --from=build /app/customization /app/customization
 ENV PATH="/app/.venv/bin:$PATH" HOME=/home/voiceagent
 USER 10001:10001
 EXPOSE 8081

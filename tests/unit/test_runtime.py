@@ -30,7 +30,10 @@ def test_session_uses_explicit_direct_clients_and_local_vad(settings, monkeypatc
 
 
 @pytest.mark.parametrize("failure", [False, True])
-async def test_job_cleanup_normal_and_start_failure(settings, monkeypatch, failure):
+@pytest.mark.parametrize("cleanup_failure", [False, True])
+async def test_job_cleanup_normal_and_start_failure(
+    settings, monkeypatch, failure, cleanup_failure
+):
     events, cleanup = {}, []
     fake_session = SimpleNamespace(
         aclose=AsyncMock(),
@@ -50,6 +53,12 @@ async def test_job_cleanup_normal_and_start_failure(settings, monkeypatch, failu
         side_effect=RuntimeError("private-synthetic") if failure else None
     )
     monkeypatch.setattr(runtime, "build_session", Mock(return_value=fake_session))
+    if cleanup_failure:
+        monkeypatch.setattr(
+            runtime.SessionControl,
+            "aclose",
+            AsyncMock(side_effect=RuntimeError("synthetic cleanup")),
+        )
 
     @asynccontextmanager
     async def chain(_settings):
@@ -77,7 +86,7 @@ async def test_job_cleanup_normal_and_start_failure(settings, monkeypatch, failu
     options = fake_session.start.call_args.kwargs
     assert options["record"] is False and options["session_host"] is False
     assert ctx.shutdown.call_args.kwargs["reason"] == (
-        "session_failure" if failure else "participant_disconnected"
+        "session_failure" if failure or cleanup_failure else "participant_disconnected"
     )
     assert len(callbacks) == 1
 

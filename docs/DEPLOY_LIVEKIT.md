@@ -1,8 +1,10 @@
 # LiveKit Cloud deployment runbook
 
-Prepared against official docs on 2026-11-02. Nothing has been deployed, authenticated or billed.
-The LiveKit CLI and Docker are missing locally; template tests do not prove CLI compatibility or
-Cloud acceptance. The Phase 8 exit gate remains BLOCKED. See [container operations](SELF_HOST.md)
+Prepared against official docs on 2026-11-02. The owner confirms a successful Cloud deployment and
+at least one audible microphone conversation at revision 1fe4b9f. This review did not deploy,
+authenticate or make billable requests. Live metrics/turn counts and raw build/status logs were
+not supplied. Local Docker/CLI are unavailable; full Phase 8 operational acceptance remains pending.
+See [release acceptance](RELEASE.md) and [container operations](SELF_HOST.md)
 for the shared Dockerfile, environment contract, model preparation, health and drain limits.
 
 Startup URL investigation: the application now accepts the installed SDK's secure https alias
@@ -10,8 +12,9 @@ and loopback-only http alias, preserving the remote-TLS and no-userinfo/query/fr
 Temporarily, `start`/`dev` emits only `livekit_url_scheme` and `livekit_url_host_category` on stderr
 before validation. Read those labels after an explicitly authorized update of the existing agent;
 do not export its full environment/URL or create a replacement deployment to diagnose it. The
-project-list URL alone cannot confirm the injected runtime value. No remote update or CrashLoop
-recovery has been verified here; remove the temporary diagnostic once the runtime shape is known.
+project-list URL alone cannot confirm the injected runtime value. The owner now reports successful
+startup and voice; runtime URL labels and the original CrashLoop trigger remain unobserved here.
+Remove the temporary diagnostic after that safe runtime confirmation and regression review.
 
 ## Review before authorization
 

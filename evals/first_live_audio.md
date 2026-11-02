@@ -1,8 +1,13 @@
-# First authorized live-audio run — BLOCKED / NOT RUN
+# Live-audio acceptance checklist — qualitative smoke reported; formal gates pending
+
+The owner reports a running Cloud deployment and at least one audible Deepgram → Groq → Cartesia
+microphone conversation at revision 1fe4b9f, reported 2026-11-02. This is qualitative evidence only:
+exact turn count, timings, errors, cleanup and formal interruption results are unavailable.
+It does not establish that the detailed checklist below was run. Additional tests remain unapproved.
 
 This checklist prepares a local worker in a designated LiveKit test room; no cloud deployment
-is required. No command below that starts a worker or calls providers is authorized yet. The
-previous five Groq text requests are exhausted and do not cover voice/simulation use. Fill keys
+is required. No new command below that starts a worker or calls providers is authorized by this
+review. The previous five Groq text requests do not cover additional voice/simulation use. Fill keys
 locally in the existing ignored .env.local; never paste them into chat or this document.
 
 ## Before requesting approval

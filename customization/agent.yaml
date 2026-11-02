@@ -1,0 +1,95 @@
+# Opt in by copying customization/.env.example to customization/.env.local.
+# Unspecified advanced fields keep the validated defaults in config.example.yaml.
+identity:
+  name: null                 # Optional spoken name; runtime.agent_name is the dispatch name.
+  role: null                 # Optional short role. Personality belongs in prompt.md.
+greeting:
+  mode: user_first           # user_first | custom | dynamic
+  text: null                 # Required only for custom mode; spoken exactly, no LLM request.
+  instructions: Greet the participant in one short, natural sentence. Then listen.
+ending:
+  enabled: false             # Exposes the guarded end_session tool only when true.
+  farewell_mode: custom      # custom | generated | none
+  farewell: Goodbye!
+  instructions: Say a brief, polite farewell in one sentence. Do not ask a question.
+  timeout_seconds: 10
+stt:
+  model: nova-3
+  language: en
+  keyterms: []
+  eot_threshold: null
+  eager_eot_threshold: null
+  eot_timeout_ms: null
+llm:
+  model: openai/gpt-oss-20b
+  reasoning_effort: low
+  max_output_tokens: 256
+  temperature: 0.6
+  history_messages: 24
+tts:
+  model: sonic-3
+  voice_id: null
+  language: en
+  emotion: neutral
+  speed: 1.0
+  volume: 1.0
+listening:
+  turn_detection: vad
+  endpointing_mode: fixed
+  endpointing_alpha: 0.9
+  min_endpoint_delay: 0.5
+  max_endpoint_delay: 3.0
+  vad:
+    min_speech_duration: 0.05
+    min_silence_duration: 0.55
+    prefix_padding_duration: 0.5
+    activation_threshold: 0.5
+interruption:
+  enabled: true
+  mode: vad
+  allow_cloud_inference: false
+  min_duration: 0.5
+  min_words: 0
+  false_interruption_timeout: 2.0
+  resume_false_interruption: true
+  discard_audio_if_uninterruptible: true
+  backchannel_boundary: [1.0, 1.0]
+latency:
+  preemptive_llm: false
+  preemptive_tts: false
+  metrics: true
+  metric_window: 256
+humanization:
+  enabled: false
+  default_style: conversational
+  emotion: auto
+  speed: null
+  volume: null
+  disfluencies: contextual
+  max_leading_fillers_per_turn: 1
+  filler_cooldown_turns: 3
+  pauses: punctuation
+  pace: baseline
+  emotional_range: baseline
+  markup: false
+  laughter: false
+runtime:
+  dispatch: explicit
+  agent_name: voiceagent
+  max_session_seconds: 1800
+  idle_timeout_seconds: 120
+  hook_timeout_seconds: 2
+  log_level: INFO
+  startup_timeout_seconds: 30
+  drain_timeout_seconds: 5
+  shutdown_timeout_seconds: 10
+limits:
+  request_timeout_seconds: 10
+  max_retries: 0
+  max_tool_steps: 3
+  max_llm_requests: 100
+  max_input_bytes: 8192
+  retry_interval_seconds: 2
+  max_prompt_bytes: 32768
+  max_metadata_bytes: 2048
+prompt_path: customization/prompt.md

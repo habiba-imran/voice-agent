@@ -35,6 +35,14 @@ livekit.agents.voice.agent_session.AgentSession.interrupt(self, *, force: 'bool'
 
 livekit.agents.voice.agent_session.AgentSession.generate_reply(self, *, user_input: 'NotGivenOr[str | llm.ChatMessage]' = NOT_GIVEN, instructions: 'NotGivenOr[str | Instructions]' = NOT_GIVEN, tool_choice: 'NotGivenOr[llm.ToolChoice]' = NOT_GIVEN, tools: 'NotGivenOr[list[str]]' = NOT_GIVEN, allow_interruptions: 'NotGivenOr[bool]' = NOT_GIVEN, chat_ctx: 'NotGivenOr[ChatContext]' = NOT_GIVEN, input_modality: "Literal['text', 'audio']" = 'text') -> 'SpeechHandle'
 
+livekit.agents.voice.agent_session.AgentSession.say(self, text: 'str | AsyncIterable[str]', *, audio: 'NotGivenOr[AsyncIterable[rtc.AudioFrame]]' = NOT_GIVEN, allow_interruptions: 'NotGivenOr[bool]' = NOT_GIVEN, add_to_chat_ctx: 'bool' = True) -> 'SpeechHandle'
+
+livekit.agents.voice.events.RunContext.wait_for_playout(self) -> 'None'
+
+livekit.agents.job.JobContext.wait_for_participant(self, *, identity: 'str | None' = None, kind: 'list[rtc.ParticipantKind.ValueType] | rtc.ParticipantKind.ValueType' = [5, 3, 0]) -> 'rtc.RemoteParticipant'
+
+livekit.agents.llm.tool_context.function_tool(f: 'Callable[_P, _R] | None' = None, *, name: 'str | None' = None, description: 'str | None' = None, raw_schema: 'RawFunctionDescription | dict[str, Any] | None' = None, flags: 'ToolFlag' = <ToolFlag.NONE: 0>, on_duplicate: 'DuplicateMode' = 'allow', duplicate_scope: 'DuplicateScope' = 'name') -> 'FunctionTool[_P, _R] | RawFunctionTool[_P, _R] | Callable[[Callable[_P, _R]], FunctionTool[_P, _R] | RawFunctionTool[_P, _R]]'
+
 livekit.agents.voice.agent_session.AgentSession.run(self, *, user_input: 'str', input_modality: "Literal['text', 'audio']" = 'text', output_type: 'type[Run_T] | None' = None, output_options: 'NotGivenOr[RunOutputOptions | None]' = NOT_GIVEN) -> 'RunResult[Run_T]'
 
 livekit.agents.voice.run_result.RunAssert.next_event(self, *, type: "Literal['message', 'function_call', 'function_call_output', 'agent_handoff'] | None" = None) -> 'EventAssert | ChatMessageAssert | FunctionCallAssert | FunctionCallOutputAssert | AgentHandoffAssert'
@@ -44,6 +52,8 @@ livekit.agents.voice.run_result.RunAssert.no_more_events(self) -> 'None'
 livekit.agents.voice.run_result.ChatMessageAssert.event(self) -> 'ChatMessageEvent'
 
 livekit.agents.voice.speech_handle.SpeechHandle.interrupt(self, *, force: 'bool' = False, source: 'InterruptionSource' = 'programmatic') -> 'SpeechHandle'
+
+livekit.agents.voice.speech_handle.SpeechHandle.wait_for_playout(self) -> 'None'
 
 livekit.agents.voice.speech_handle.SpeechHandle.add_done_callback(self, callback: 'Callable[[SpeechHandle], None]') -> 'None'
 

@@ -1,8 +1,36 @@
 # VoiceAgent Core
 
 Reusable Python source folder for a direct Deepgram → Groq → Cartesia worker using LiveKit Agents.
-Phase 0 and Phase 1 are verified. The Phase 2 baseline is implemented and tested offline;
-real Deepgram/Cartesia audio and LiveKit room acceptance remain blocked on approval.
+
+The reusable core, customization and generic integration examples are implemented and source-reviewed. See
+[customization](docs/CUSTOMIZATION.md) for the three greeting modes, optional end-session tool,
+identity/settings and legacy compatibility. See [website integrations](integrations/README.md) for
+React/Next.js examples and a separate persistent, rate-limited token gateway. No portfolio code,
+automatic deployment or provider-credential changes are included.
+
+This is the completed reusable source handoff, ready to clone and configure; production acceptance
+limitations remain below. Portfolio integration is future application work, including its real
+authentication, UI and hosting choices. The current SQLite gateway requires persistent storage on
+one host and is **not suitable for Vercel serverless**. A Vercel-hosted Next.js proxy can call a
+separately hosted durable gateway. Upstash integration is deferred to the portfolio implementation;
+no Upstash adapter or dependency is included here.
+
+Developer onboarding:
+
+1. Clone the repository, enter this folder and run `uv sync --locked`.
+2. Edit customization/agent.yaml and customization/prompt.md.
+3. Copy customization/.env.example to customization/.env.local only if absent; fill your own
+   credentials and authorized voice locally. Existing root files remain supported.
+4. Run `uv run agent.py validate --mode room`; validation is offline.
+5. Either separately approve/deploy your customized worker, or configure the integration gateway
+   to connect to an existing worker with the matching project/dispatch name, without redeployment.
+6. Copy the React/Next.js references into your app, implement its server authentication adapter,
+   and configure durable gateway storage/limits before enabling traffic. It fails closed by default.
+
+Phase 0 and Phase 1 are verified. The owner confirmed a working LiveKit Cloud deployment and
+at least one audible Deepgram → Groq → Cartesia microphone conversation on revision `1fe4b9f`.
+This is qualitative smoke evidence; turn count and live timing/error/cleanup metrics are unavailable.
+The complete Phase 2 baseline and broader live acceptance scenarios remain pending.
 Phase 3 adds selectable turn profiles and native interruption/recovery controls with offline
 behavioral tests. Its acoustic acceptance remains blocked. See [turn tuning](docs/TUNING.md).
 Phase 4 adds optional direct-provider delivery controls and streaming text guards, off by default.
@@ -14,9 +42,10 @@ stricter logging/failure policy. See [reliability and security](docs/RELIABILITY
 Phase 7 groups offline simulations, supported SDK run assertions and reproducible signal fixtures.
 See [evaluation](docs/EVALUATION.md) and the [first live-audio checklist](evals/first_live_audio.md).
 Phase 8 prepares a pinned non-root image and deployment runbooks. See [local/Docker operations](docs/SELF_HOST.md)
-and [LiveKit Cloud deployment](docs/DEPLOY_LIVEKIT.md). Docker/CLI are unavailable; images and deployment
-remain unverified, and Cloud deployment requires explicit approval.
-No voice quality, latency, deployment, or production-readiness claim is made.
+and [LiveKit Cloud deployment](docs/DEPLOY_LIVEKIT.md). Local Docker/CLI remain unavailable;
+independent image inspection, rollout/drain/rollback and quantitative Cloud gates remain pending.
+Phase 9 handoff preparation is in [release acceptance](docs/RELEASE.md) and [CHANGELOG](CHANGELOG.md).
+No general voice-quality, latency-target or final production-release claim is made.
 
 Use Python 3.12 and uv. Operate from this directory, including when nested in another repository:
 
@@ -54,7 +83,8 @@ After approving provider/LiveKit usage, the worker command is `uv run agent.py s
 rich Python CLI; this module uses the current `python -m livekit.agents` entry instead and
 exports `agent.py:server` for discovery. Interactive console mode requires a LiveKit CLI TCP
 driver (`--connect-addr`), not a bare standalone `agent.py console` command. LiveKit CLI is
-unavailable here; actual console, registration and room audio have not been tested.
+unavailable here; local console was not tested. The owner-reported Cloud conversation is the
+available qualitative live evidence, not an independently reviewed metrics export.
 
 The runtime uses direct provider instances and explicit local Silero VAD. Constructing a real
 AgentSession starts SDK provider prewarming. Factory tests mock construction; behavioral tests
@@ -70,7 +100,7 @@ official PyPI downloads stalled. The final locked sync and dependency check pass
 and artifacts are ignored under `.tools/`; no global Python, uv, DNS, or antivirus settings changed.
 See docs/PHASE_REPORT.md for exact recovery/verification commands and offline test environment.
 
-No LiveKit Cloud deployment is authorized. Keep livekit.toml and deployment identities unique per
+No additional Cloud deployment or live test is authorized by this review. Keep livekit.toml and deployment identities unique per
 copied project; they are ignored. Cloud injects LIVEKIT_*; only provider keys are supplied as
 additional cloud secrets. Local/self-hosted room workers require all six credentials/URL values.
 

@@ -1,5 +1,10 @@
 # Copying the foundation
 
+For the post-roadmap opt-in developer folder and greeting/ending controls, see
+[CUSTOMIZATION.md](CUSTOMIZATION.md). General website/token/dispatch references are in
+[integrations/README.md](../integrations/README.md). They are separate from the worker and require
+host authentication and durable gateway infrastructure; no portfolio integration is supplied.
+
 Copy this entire directory under any host repository, for example `host/voiceagent/`.
 Do not copy .venv/, .env.local, recordings, caches, livekit.toml, or deployment IDs.
 Copy the tracked source files, .env.example, prompt.md, example YAML, pyproject.toml, and uv.lock
@@ -71,14 +76,15 @@ offline safeguards do not certify live recovery, provider quota or prompt-inject
 
 One copy belongs to one deployment context. Provision separate provider secrets, LiveKit project,
 agent deployment ID, named dispatch policy, voice permissions, and budget for each consuming app.
-Do not copy another app's deployment identity. Cloud worker deployment and self-hosted Docker
-execution are later phase gates; see PHASE_REPORT.md before treating the template as runnable.
+Do not copy another app's deployment identity. The owner reports one working Cloud voice smoke
+test; independent Docker and full live acceptance remain pending. See [release preparation](RELEASE.md)
+for source export, cleanup and acceptance; no portfolio or customer integration belongs in the core.
 
 ## Verified startup and offline verification
 
 `agent.py` exports a global server for installed LiveKit discovery and prepends its own src path.
 This prevents a host's `voiceagent.py` from shadowing the copied package. The clean-copy test
-checks that collision, editable package discovery, SDK server discovery, current `start --help`,
+checks that collision, stale parent LiveKit TOML isolation, editable package discovery, SDK server discovery, current `start --help`,
 prompt/config edits, and a separate rerun of the copied unit suite.
 
 Normal setup uses `uv sync --locked` and requires dependency access or a populated uv cache.
@@ -90,4 +96,5 @@ finishes with `uv sync --locked --offline`. It never copies the original venv or
 `start` delegates to the installed modern LiveKit module CLI. `dev` uses `start --dev` without
 hot reload. Interactive console needs a LiveKit CLI driver; its flags are not locally verified
 because `lk` is unavailable. Starting a real session invokes provider prewarming and may consume
-credits; the native CLI help/discovery checks do neither. Live registration/audio remain unverified.
+credits; the native CLI help/discovery checks do neither. Live registration/audio is owner-confirmed
+for the first Cloud conversation; metrics and complete scenario acceptance remain pending.

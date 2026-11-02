@@ -17,6 +17,7 @@ class SessionExtensions:
     # Validated as LiveKit FunctionTool/RawFunctionTool at the runtime boundary.
     tools: tuple[object, ...] = ()
     metadata: dict[str, str] = field(default_factory=dict)
+    ending_policy: Callable[[str], bool] | None = None
 
 
 SessionHook = Callable[[], Awaitable[SessionExtensions]]
@@ -55,7 +56,15 @@ async def prepare_extensions(
 
         if not all(is_function_tool(tool) or is_raw_function_tool(tool) for tool in result.tools):
             raise HookError("Session tools must be decorated LiveKit function tools")
-    return SessionExtensions(tools=result.tools, metadata=dict(result.metadata))
+    if result.ending_policy is not None and (
+        not callable(result.ending_policy)
+        or inspect.iscoroutinefunction(result.ending_policy)
+        or inspect.iscoroutinefunction(result.ending_policy.__call__)
+    ):
+        raise HookError("Ending policy must be a synchronous callable")
+    return SessionExtensions(
+        tools=result.tools, metadata=dict(result.metadata), ending_policy=result.ending_policy
+    )
 
 
 async def resolve_extensions(

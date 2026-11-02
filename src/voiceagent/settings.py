@@ -179,6 +179,41 @@ class RuntimeSettings(Model):
     shutdown_timeout_seconds: float = Field(default=10, ge=1, le=60)
 
 
+class IdentitySettings(Model):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    role: str | None = Field(default=None, min_length=1, max_length=500)
+
+
+class GreetingSettings(Model):
+    mode: Literal["user_first", "custom", "dynamic"] = "user_first"
+    text: str | None = Field(default=None, min_length=1, max_length=500)
+    instructions: str = Field(
+        default="Greet the participant in one short, natural sentence. Then listen.",
+        min_length=1,
+        max_length=500,
+    )
+
+    @model_validator(mode="after")
+    def coherent_greeting(self):
+        if self.mode == "custom" and (self.text is None or not self.text.strip()):
+            raise ValueError("Custom greeting requires nonblank greeting.text")
+        if self.mode != "custom" and self.text is not None:
+            raise ValueError("greeting.text applies only to custom mode")
+        return self
+
+
+class EndingSettings(Model):
+    enabled: bool = False
+    farewell_mode: Literal["custom", "generated", "none"] = "custom"
+    farewell: str = Field(default="Goodbye!", min_length=1, max_length=500)
+    instructions: str = Field(
+        default="Say a brief, polite farewell in one sentence. Do not ask a question.",
+        min_length=1,
+        max_length=500,
+    )
+    timeout_seconds: float = Field(default=10, ge=1, le=30)
+
+
 class Limits(Model):
     request_timeout_seconds: float = Field(default=10, gt=0, le=60)
     max_retries: Literal[0] = 0
@@ -200,11 +235,18 @@ class Settings(Model):
     latency: LatencySettings = Field(default_factory=LatencySettings)
     humanization: HumanizationSettings = Field(default_factory=HumanizationSettings)
     runtime: RuntimeSettings = Field(default_factory=RuntimeSettings)
+    identity: IdentitySettings = Field(default_factory=IdentitySettings)
+    greeting: GreetingSettings = Field(default_factory=GreetingSettings)
+    ending: EndingSettings = Field(default_factory=EndingSettings)
     limits: Limits = Field(default_factory=Limits)
     prompt_path: Path = PROJECT_ROOT / "prompt.md"
 
     @model_validator(mode="after")
     def validate_profiles(self) -> Settings:
+        if self.runtime.greeting and "greeting" in self.model_fields_set:
+            raise ValueError("Use greeting settings or legacy runtime.greeting, not both")
+        if self.ending.enabled and self.limits.max_tool_steps == 0:
+            raise ValueError("Ending tool requires limits.max_tool_steps > 0")
         flux = self.stt.model.startswith("flux-")
         if flux != (self.listening.turn_detection == "stt"):
             raise ValueError("Flux requires stt turn detection; Nova requires vad or semantic")
@@ -229,6 +271,12 @@ class Settings(Model):
         if len(self.stt.keyterms) > 100:
             raise ValueError("at most 100 STT keyterms are supported")
         return self
+
+    @property
+    def opening(self) -> GreetingSettings:
+        if self.runtime.greeting:
+            return GreetingSettings(mode="custom", text=self.runtime.greeting)
+        return self.greeting
 
     def require_credentials(self, *, room: bool) -> None:
         names = ["DEEPGRAM_API_KEY", "GROQ_API_KEY", "CARTESIA_API_KEY"]
@@ -358,7 +406,7 @@ def load_settings(
     environ: Mapping[str, str] | None = None,
     project_root: Path = PROJECT_ROOT,
 ) -> Settings:
-    """Overrides > process env > project .env.local > YAML > typed defaults.
+    """Overrides > process env > customization .env.local > root .env.local > YAML > defaults.
 
     Explicit relative config/prompt paths resolve from the copied project root.
     No parent .env files, current working directory, or network access are used.
@@ -368,6 +416,13 @@ def load_settings(
         raise ConfigurationError("Constructor overrides must be a mapping")
     try:
         local = dotenv_values(project_root / ".env.local", interpolate=False, encoding="utf-8-sig")
+        custom = dotenv_values(
+            project_root / "customization" / ".env.local", interpolate=False, encoding="utf-8-sig"
+        )
+        local = {
+            **local,
+            **{key: value for key, value in custom.items() if value and value.strip()},
+        }
     except (OSError, UnicodeError):
         raise ConfigurationError("Cannot read project .env.local as UTF-8") from None
     path = config_path or env.get("VOICEAGENT_CONFIG_PATH") or local.get("VOICEAGENT_CONFIG_PATH")

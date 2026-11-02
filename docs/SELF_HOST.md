@@ -1,8 +1,9 @@
 # Local execution and Docker operations
 
 Phase 8 prepares deployment artifacts. Docker and LiveKit CLI are unavailable on the verification
-machine. No image, Linux runtime, OS signal delivery, worker registration or live audio has been
-verified. See [phase evidence](PHASE_REPORT.md) for commands actually executed. All commands below
+machine. The owner reports a working Cloud deployment and audible microphone conversation at
+revision 1fe4b9f; independent image inspection, Linux self-hosting and OS signal/drain verification
+remain pending. See [phase evidence](PHASE_REPORT.md) for commands actually executed. All commands below
 run from the copied `voiceagent/` folder; each copy has its own private configuration and deployment.
 
 ## Local setup

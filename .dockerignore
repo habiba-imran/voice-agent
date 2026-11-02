@@ -7,6 +7,9 @@
 !agent.py
 !prompt.md
 !config.example.yaml
+!customization/
+!customization/agent.yaml
+!customization/prompt.md
 !src/
 !src/voiceagent/
 !src/voiceagent/*.py

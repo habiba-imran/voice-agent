@@ -423,3 +423,55 @@ or parser errors. It is emitted even when startup validation fails and omitted f
 config/validate. Remove it after runtime confirmation. Actual recovery needs a separately approved
 update of the same existing agent and review of these safe labels; do not create a new deployment
 or change credentials to work around an unconfirmed diagnosis.
+
+## Phase 8 qualitative live evidence and Phase 9 preparation — 2026-11-02
+
+The owner confirms Cloud deployment/running state and at least one audible real-microphone
+Deepgram → Groq → Cartesia conversation on revision 1fe4b9f. Local Git resolves that revision to
+the current HEAD. This is owner-confirmed qualitative evidence, not an independently reviewed
+Cloud export. Exact turns, stage/end-to-end timings, errors, cleanup, interruption performance,
+cache/usage/cost and deployed runtime settings were not collected. Existing phase5/phase7 numeric
+reports remain explicitly synthetic/offline. Startup is reported recovered; the injected URL
+shape and original failure trigger are still unknown, so success does not prove that hypothesis.
+
+Phase 9 preparation adds a source-candidate changelog, release/runbook and acceptance matrix,
+updates stale no-live-test wording, and strengthens the existing copy test with a foreign host
+LiveKit binding. No runtime/provider/prompt/dependency changes are made. A private candidate ZIP
+is assembled from scanned staged source with external hashes, excluding private env/Cloud bindings,
+caches, recordings, local metrics and Git state; it is not a tagged/published release or wheel-only
+distribution. Version remains 0.1.0. Core imports remain independent of portfolio/customer projects.
+
+No destructive cache/private-file cleanup, credential modification, new live test or deployment
+is performed. Temporary diagnostic removal awaits safe runtime confirmation. Final release still
+needs quantitative/scenario/operational/image evidence and license/ownership/voice-rights review.
+No project source license is present; choosing one or publicly distributing is not implied.
+
+## Post-roadmap customization and integration
+
+The user's post-Phase-9 request explicitly authorizes general React/Next.js integration references;
+the earlier roadmap's no-frontend boundary still applies to application/portfolio functionality
+inside the core. Existing provider clients, root prompt/defaults and credentials remain unchanged.
+Customization is opt-in through a private customization/.env.local or explicit path variables,
+not an automatic switch merely because the new directory exists. Legacy runtime.greeting maps
+to the custom greeting; ambiguous old/new greeting configurations fail validation.
+
+New greetings and ending use native SDK speech handles. Ending runs inline to preserve tool
+context and avoid circular waits. New observed user activity cancels hangup on all playout paths,
+including exceptions/timeouts. A normal cancelled-tool string allowed an automatic old-context
+LLM reply to invoke ending again in native tests. The runtime now uses the installed public
+StopResponse exception for that outcome, suppressing the stale reply without another model call.
+The LLM ending tool defaults off, and the direct application action remains explicit/trusted.
+
+The independent gateway uses the already-locked LiveKit server SDK, aiohttp/PyJWT and persistent
+SQLite. Production topology is one central gateway host with a shared durable local DB across
+its workers; no process-local counter fallback, ephemeral/serverless DB or independent multi-host
+replicas are supported. A multi-host shared-store adapter is deferred. Browser tokens have scoped
+microphone/join grants and no embedded dispatch; room creation/dispatch stay server-owned.
+Strict Cloud token revocation, ownership, bounded persisted cleanup and conservative upfront
+usage reservations protect repeated-token/session paths. Authentication/challenge/trusted-network
+mapping belongs to the host adapter, which intentionally fails closed until implemented.
+
+Only the integration examples add npm dependencies, separately pinned/locked and private; worker
+Python dependencies are unchanged. SDK types and mock client/server flows are verified separately
+from actual Next.js builds, browser audio, Cloud revocation and public-site security acceptance.
+Prior Phase 9 quantitative, operational, diagnostic, licensing and voice-rights blockers remain.

@@ -70,6 +70,9 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         "compose.yaml",
     ):
         shutil.copy2(PROJECT_ROOT / name, destination / name)
+    (destination / "customization").mkdir()
+    for name in ("agent.yaml", "prompt.md", ".env.example"):
+        shutil.copy2(PROJECT_ROOT / "customization" / name, destination / "customization" / name)
     # Only inert deployment metadata travels with a copy, never a real Cloud binding.
     for folder, name in (
         ("deploy", "livekit.toml.example"),
@@ -87,6 +90,18 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
         destination / "scripts",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
+    shutil.copytree(
+        PROJECT_ROOT / "integrations",
+        destination / "integrations",
+        ignore=lambda _path, names: [
+            name
+            for name in names
+            if name in {"__pycache__", "node_modules", ".next", ".npmrc"}
+            or (name.startswith(".env") and name != ".env.example")
+            or name.endswith((".pyc", ".sqlite3", ".sqlite3-wal", ".sqlite3-shm", ".db"))
+            or (name.startswith("livekit") and name.endswith(".toml"))
+        ],
+    )
     shutil.copytree(PROJECT_ROOT / "tests" / "fixtures", destination / "tests" / "fixtures")
     # Copy only the non-secret prepared scenario template, never local evaluation artifacts.
     (destination / "evals").mkdir()
@@ -103,6 +118,11 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
     # The parent deliberately contains conflicting app imports and secrets. Neither is used.
     (host / "voiceagent.py").write_text("raise RuntimeError('wrong host import')\n")
     (host / ".env").write_text("GROQ_API_KEY=synthetic-host-credential-must-not-load\n")
+    (host / "livekit.toml").write_text(
+        '[project]\nsubdomain="synthetic-foreign-project"\n[agent]\nid="synthetic-foreign-agent"\n'
+    )
+    assert not (destination / "livekit.toml").exists()
+    assert not (destination / ".env.local").exists()
     configured_cache = os.environ.get("UV_CACHE_DIR")
     environment = dict(os.environ)
     for key in list(environment):
@@ -236,6 +256,7 @@ def test_copy_editable_install_and_foreign_cwd(tmp_path: Path):
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
     assert data["credentials"]["groq_api_key"] == "<unset>"
+    assert not (destination / "livekit.toml").exists()
     assert Path(data["prompt_path"]) == destination / "prompt.md"
     config_path = destination / "config.example.yaml"
     original_config = config_path.read_text(encoding="utf-8")

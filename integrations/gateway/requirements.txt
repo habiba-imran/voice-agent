@@ -1,0 +1,5 @@
+# Optional standalone gateway, not additional voice-worker dependencies.
+# These versions are already present transitively in the tested uv.lock.
+livekit-api==1.2.2
+aiohttp==3.14.5
+PyJWT==2.15.1

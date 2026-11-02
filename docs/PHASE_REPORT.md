@@ -2,18 +2,20 @@
 
 ## Current status — verified 2026-11-01 through 2026-11-02, Asia/Karachi
 
-**Phase 0: PASS. Phase 1: PASS. Phase 2: implemented; live acceptance BLOCKED.**
+**Phase 0: PASS. Phase 1: PASS. Phase 2: first voice smoke owner-confirmed; full live baseline PENDING.**
 **Phase 3: offline implementation/verification PASS; overall acceptance BLOCKED.**
 **Phase 4: offline implementation/verification PASS; live acceptance BLOCKED.**
 **Phase 5: offline implementation/verification PASS; live performance acceptance BLOCKED.**
 **Phase 6: offline implementation/verification PASS; live reliability/security acceptance BLOCKED.**
 **Phase 7: offline implementation/verification PASS; real-audio/hosted acceptance BLOCKED.**
-**Phase 8: offline artifacts/tests PASS; Docker/CLI/live deployment acceptance BLOCKED.**
-Cloud startup investigation: local URL compatibility fix and safe diagnostics prepared;
-the existing agent's injected URL and actual recovery remain unverified (see latest section).
+**Phase 8: offline artifacts/tests PASS; Cloud deployment/first voice owner-confirmed; full operational acceptance PENDING.**
+**Phase 9: source handoff/release preparation complete; final acceptance BLOCKED by remaining gates.**
+**Reusable core and generic customization/integration source handoff: COMPLETE; offline verification PASS; live/production integration acceptance PENDING.**
+The owner confirms successful Cloud startup/voice at revision 1fe4b9f. The injected URL and original
+CrashLoop trigger remain unobserved; no runtime metrics were supplied (see latest review).
 Historical blocker sections below are retained as evidence of earlier attempts; this status supersedes
-them. No deployment is authorized. The approved budget of five Groq text requests is exhausted;
-no additional provider requests, STT/TTS, audio recordings, or room tests are approved.
+them. The owner's live test is recorded separately from coding-agent actions. No new deployment
+or live test is authorized by this review; no additional provider calls or recording are approved.
 
 Phase 5 offline work is authorized separately on 2026-11-02. Its implementation and verification
 record appears at the end of this report; no synthetic measurement closes the live gates above.
@@ -1315,3 +1317,426 @@ failure; preserve the security checks and continue diagnosis rather than changin
 assuming a malformed URL. Remote plaintext/non-loopback remains rejected; a Cloud marker is not
 evidence authorizing a transport-security bypass. Remove the temporary diagnostic after runtime
 confirmation. All prior unverified live gates remain BLOCKED.
+
+## Phase 8 deployment/live evidence review — owner confirmation, 2026-11-02
+
+The owner reports a successful LiveKit Cloud deployment, running agent and first real microphone
+conversation producing audible **Deepgram → Groq → Cartesia** responses. Deployed source revision:
+`1fe4b9f`; confirmed live sessions: **at least 1**. This is qualitative first-hand owner evidence.
+It is not a replayed recording, independently fetched Cloud log/status export or instrumented
+acceptance run by this coding agent. Report date is 2026-11-02, Asia/Karachi; exact call timestamps
+were not supplied. No new provider request, live test, recording, authentication or deployment was
+performed during this review, and none is authorized for the next step by this task.
+
+Local checks: `git rev-parse HEAD` and `git rev-parse '1fe4b9f^{commit}'` both returned
+`1fe4b9fce659a890d6ae3fb7836349739de5518d` (exit 0). Runtime/provider/prompt/config/dependency/image
+source is unchanged from that revision. This establishes source identity locally; it does not
+independently inspect the deployed container/settings or establish that every intended default
+was active. The reported conversation supports successful startup/transport and an audible
+provider pipeline for that session. It does not prove ongoing uptime or the old CrashLoop trigger.
+Actual injected URL labels and exact cause of the original failure remain unobserved here.
+
+### Live measurements and available artifacts
+
+| Observation / metric | Available evidence | Limit |
+| --- | --- | --- |
+| Deployment/running state | Owner-confirmed success on revision 1fe4b9f | No build/status/image export reviewed |
+| Real microphone and audible pipeline | Owner-confirmed successful conversation | No recording/transcript collected by this review |
+| Live sessions | At least 1, owner-confirmed | Not an exact account-wide session count |
+| Voice turns | Unavailable | Do not infer the required three/five successful turns |
+| STT latency | Unavailable | No reviewed live samples or percentile |
+| LLM TTFT/duration | Unavailable | No reviewed live samples or percentile |
+| TTS TTFB/duration | Unavailable | No reviewed live samples or percentile |
+| End-to-end/caller-heard latency | Unavailable | No input/playback boundary or clock evidence |
+| Cold/warm classification | Unavailable | Cannot separate cold boot from warm conversation |
+| Errors/cleanup counts | Unavailable | Successful audio does not prove error-free teardown |
+| Interruption/false interruption | Not formally measured | No barge-in stop time or recovery score |
+| Cache/token/account usage/cost | Unavailable | No cache-hit ratio, savings or spend claim |
+| Humanization/naturalness | No formal A/B/listening evaluation | Audible speech alone does not validate emotions/prosody/target quality |
+
+Reviewed local artifact provenance with `.venv\Scripts\python.exe .tools/phase9_evidence.py`
+(exit 0): phase5_synthetic.json and phase7_synthetic.json have origin synthetic_native_session,
+provider_latency_claim=false and caller_heard_latency=null. phase7_offline.json has origin
+offline_scripted_evaluation, real_provider_requests=0 and live_acceptance=BLOCKED. These are the
+only local result exports found; they are not live metrics and must not be relabelled. The desktop
+terminal-read tool returned isError=true, so no usable live terminal snapshot was available.
+The owner explicitly confirmed the quantitative metrics above were not collected. No full URL,
+deployment identity, audio/transcript or credentials were added to this reusable report.
+
+### Phase 8 disposition
+
+Cloud deployment/startup and first audible conversation: **OWNER-CONFIRMED QUALITATIVE PASS**.
+Independent local Docker/layer/hardening/SIGTERM/self-host checks, five-turn local onboarding,
+three-turn Cloud acceptance, rolling update/in-flight call drain and rollback evidence remain
+**PENDING/BLOCKED**. Docker/lk remain unavailable in this session; the owner's separate Cloud
+execution is recognized without inventing local command exits. Full Phase 8 is not marked PASS.
+Phases 2–7 untested quantitative/acoustic/reliability gates remain open; the first audible smoke
+supersedes historical statements that no real conversation has ever worked.
+
+## Phase 9 — Portability, cleanup, documentation and source release preparation
+
+Scope: prepare a reusable private source handoff and honest release gates, not a new runtime
+feature or a portfolio/customer integration. Version stays **0.1.0, unreleased source candidate**.
+No credential, provider, prompt, configuration default, dependency or runtime code was changed.
+No package publication, release tag, push, Cloud update or extra live test was performed.
+
+### Prepared work and portability evidence
+
+- Added CHANGELOG.md and docs/RELEASE.md covering semantic-version status, supported/tested
+  versions, source archive contents, recipient setup, runtime/host boundaries, update/cleanup,
+  troubleshooting/runbook links, licensing and a gate-by-gate acceptance matrix.
+- Updated README, copy/deployment/self-host/verification docs and live-eval notes to distinguish
+  owner-confirmed speech from missing metrics. Earlier phase evidence is retained historically.
+- Strengthened the existing fresh-copy test with a synthetic foreign parent livekit.toml and
+  explicit absence of a real binding/private env in the copy. It still creates a fresh locked
+  editable environment, tests foreign CWD/import/env isolation, prompt/config changes and SDK
+  discovery/help, and reruns the copied unit suite. No runtime.py edits are needed for portability.
+- Source inspection found no portfolio/customer workspace imports or references in runtime,
+  agent.py, scripts, example settings, pyproject or Dockerfile. Private owner env/Cloud binding,
+  caches and prior artifacts are retained locally but excluded from handoff; no destructive
+  filesystem/global-cache cleanup is needed or performed.
+- A source candidate is assembled from the scanned Git index, not a recursive working-tree
+  copy or a wheel-only package. Private paths are rejected; every ZIP entry is compared against
+  indexed bytes and its SHA-256, with CRC verification and an external manifest. The final archive
+  uses the finalized documentation snapshot; its checksum is kept outside its own input files.
+
+### Verification commands and actual results
+
+All commands use the voiceagent/ repository and process-local UV_CACHE_DIR=.tools/recovery-cache,
+UV_OFFLINE=true; the full suite also uses VOICEAGENT_TEST_WHEELHOUSE=.tools/wheelhouse.
+
+| Exact command / check | Exit | Result |
+| --- | --- | --- |
+| `uv sync --locked` | 0 | 100 lock entries resolved; 99 installed packages audited |
+| `uv lock --check` | 0 | Lock consistent |
+| `uv pip check` | 0 | All 99 installed packages compatible |
+| `Get-FileHash uv.lock -Algorithm SHA256` | 0 | Unchanged: 74c58ff65d390dce098f8ac2f603034ae9fff5bc8c97f8d1fdcc88dc98d13d32 |
+| `uv run pytest -q --durations=5` | 0 | **392 passed in 410.89s**, zero failures/skips; strengthened an existing case, no artificial test-count increase |
+| Fresh-copy editable installation and copied unit suite in full run | 0 | **276.24s**; stale foreign TOML, parent env/import/CWD and prompt/config isolation verified offline |
+| `uv run ruff check .` | 0 | All checks passed |
+| `uv run ruff format --check .` (first run after test edit) | 1 | Formatter requested joining adjacent synthetic TOML string literals in test_copy_contract.py |
+| `uv run ruff format tests/integration/test_copy_contract.py` | 0 | One file reformatted; identical synthetic string value, no behavior change |
+| `uv run ruff format --check .` after correction | 0 | 73 files already formatted |
+| `uv run python -m compileall -q src agent.py scripts tests` | 0 | Compilation succeeds |
+| `uv run python scripts/inspect_sdk.py > .tools/phase9_sdk.txt` | 0 | Installed SDK inspected without provider calls |
+| `Compare-Object (Get-Content .tools/phase9_sdk.txt) (Get-Content docs/SDK_SIGNATURES.txt)` with nonempty-difference failure guard | 0 | Signature output unchanged |
+| Runtime/source diff from 1fe4b9f | 0 | No runtime/provider/prompt/config/lock/image-source changes |
+
+Final link, candidate/export and indexed-secret evidence is recorded below.
+The formatter-only test change is the only Python edit after the passing full suite; it merely
+joins adjacent string literals. Copied/targeted tests are not added again to the 392 parent count.
+
+| Exact final preparation command / check | Exit | Result |
+| --- | --- | --- |
+| `.venv\Scripts\python.exe .tools/phase9_links.py` | 0 | **36 relative-file links** resolve within indexed source; 67 external/scheme links not fetched, anchors not revalidated |
+| `uv run python scripts/check_secrets.py` | 0 | **89 indexed files** against **5 configured credential values**, no matches/private env or deployment identities; limited to known values/filenames |
+| `git ls-files '.env*' 'livekit*.toml' '.tools/*' '.venv/*'` | 0 | Only .env.example listed |
+| `.venv\Scripts\python.exe .tools/prepare_source_candidate.py preflight` | 0 | **89 entries**, ZIP CRC verified, every uncompressed entry SHA-256 matches index; no private/local artifact paths |
+| `git diff --check` and `git diff --cached --check` | 0 | No whitespace errors |
+
+Preflight checksum is recorded in its external `.tools/release/` manifest. The final
+`voiceagent-core-0.1.0-candidate.zip` is built from the finalized staged documentation/test snapshot
+using the same index-only exporter; its separate candidate.manifest.json is the package verification
+receipt, including file hashes, archive hash, base revision and index content digest. Keeping this
+receipt outside the source archive avoids embedding an archive's digest in its own input report.
+The local helper/receipts remain ignored and are not copied into the reusable module. No source
+license, signed tag or public release is implied. All candidate bytes are scanned indexed content,
+not private working-tree files. The final static/secret/link checks follow documentation staging;
+no runtime code or provider settings changed after any of the passing checks.
+
+### Remaining final-release blockers
+
+1. Quantitative live evaluation: no stage/caller-heard latency, exact turns, cold/warm trials,
+   error/cleanup, cache/usage/spend data. Complete approved baseline/scenario and measurement
+   protocols before claiming performance or full live acceptance.
+2. Acoustic/quality and reliability: formal interruptions/false recovery, hesitation/noise/overlap,
+   emotion/pause/filler A/B, real disconnect/timeouts/quota/concurrency and resource/cleanup soak
+   remain unverified. A first conversation does not close those gates.
+3. Container/operations: independently inspect build/context/layers and hardened non-root Linux
+   behavior, self-host room acceptance, real SIGTERM/drain, rolling update and same-agent rollback.
+   Local Docker/CLI remain missing; this review does not install/deploy or alter the owner's agent.
+4. Cleanup: confirm only safe runtime URL labels, then review removal of the temporary diagnostic
+   with regression checks. The original startup trigger is not proved by subsequent speech success.
+5. Distribution/legal/support: no project LICENSE exists. Confirm ownership/license and third-party
+   notices/voice permissions; choose supported platform claims and review untested Python 3.13.
+   Do not infer redistribution rights from a successful Cartesia response.
+6. Release sign-off: recipient walkthrough and exact source/version approval; source candidate is
+   not a signed/tagged/public release. Existing per-project secrets/bindings must not be copied.
+
+**Phase 9 preparation is ready for review; final release acceptance remains BLOCKED/PENDING.**
+Any future provider test, recording, deployment/update or rollback needs separate explicit approval.
+
+## Post-Phase-9 customization and integration — focused continuation
+
+Date: 2026-11-02, Asia/Karachi. The user requested completion of the interrupted implementation,
+without redesigning/restarting it. Existing staged Phase 9 documentation was preserved. No commit,
+push, deployment, credential change, paid provider call or portfolio edit was performed. The
+working Cloud worker remains at its owner's separately deployed version. The owner reports
+personally testing conversation quality, latency and interruptions; those qualitative observations
+do not supply quantitative samples or close the earlier formal acceptance gates.
+
+### Inspection and retained implementation
+
+The interrupted work already contained opt-in customization files, typed greeting/ending settings,
+a SessionControl, an enabled-only native end_session tool, a persistent gateway, React controller/
+component, Next.js server proxy/routes and deterministic tests. No architecture or provider rewrite
+was needed. Gaps were final race/cleanup verification, onboarding/operational docs and a complete
+regression run. The host authentication adapter intentionally fails closed until an application
+implements it; this is a documented integration boundary, not an open anonymous token endpoint.
+
+Retained features:
+
+- customization/agent.yaml, prompt.md and .env.example. Creating the directory alone does not
+  switch existing installations. Process env > customization private env > legacy root private
+  env > YAML/defaults, with constructor overrides above all. Existing root files and legacy static
+  runtime.greeting remain supported; conflicting old/new greeting configuration is rejected.
+- User-first, exact custom (no LLM) and dynamic (one explicitly selected existing-LLM opening)
+  greetings, once per session, with SDK cancellation and no reconnect replay. Identity, supported
+  models/voice controls, turns, humanization and limits remain typed and configurable.
+- Optional guarded LLM end_session, custom/generated/no farewell, bounded playout, duplicate-call
+  sharing and explicit host agent.end_session(). Trusted synchronous host policies can extend the
+  conservative whole-utterance guard; casual/quoted/negated mentions are tested. Default tool is off.
+- Separate Cloud-only gateway using existing locked Python SDK dependencies, server-generated
+  scoped short-lived microphone tokens and one explicit dispatch. Browser tokens contain no
+  dispatch/admin/record/data grant; provider keys stay with the worker.
+- Persistent SQLite quotas across processes/connections on one gateway host: global/principal/
+  network concurrency, fixed-minute rates, daily sessions/reserved worker seconds and bounded
+  deadline cleanup. No memory fallback/refund/retry-create loop. Strict Cloud revocation and
+  ownership protect end/replay paths. Multi-host gateway databases are explicitly unsupported.
+- React starting/mute/end/reconnect/audio/cleanup behavior; Next.js bounded origin/body checks,
+  short server assertions, response whitelisting and a required host-auth adapter. No customer/
+  portfolio content. Worker customization requires an approved update; website connection to an
+  already-running explicitly dispatched worker does not require worker redeployment.
+
+### Confirmed fixes in this continuation
+
+1. The interrupted ending path checked user activity around successful playout, but cancellation
+   could return a normal tool result. The SDK then permits an automatic follow-up from the old
+   context, whose model could call ending again. The native regression reproduced premature
+   shutdown with speech scheduling paused. Cancelled endings now use the installed public
+   StopResponse exception, suppressing that stale tool reply. The test asserts only one LLM
+   request for the old bye intent and a continuing conversation. Additional deterministic cases
+   verify playout error and timeout paths never close after new user activity.
+2. A full run exposed two older session doubles with on() but no off(). Controller detachment
+   raised before session.aclose(). Subscription now requires both methods, and lifecycle close
+   executes in finally even if controller close fails. Four targeted start/normal/cleanup-error
+   combinations assert session and provider cleanup. The copied environment had exactly the same
+   two failures; its failure cache was inspected before changing code.
+
+These use SDK events, speech handles, RunContext.wait_for_playout and StopResponse rather than a
+new turn engine, extra classifier/model/provider or response retry. The installed 1.8.10 handling
+was inspected and checked against the official
+[tool reply suppression documentation](https://docs.livekit.io/reference/agents/events/).
+The provider factories, existing root prompt/config, turn profiles, humanization implementation
+and Python dependency lock remain unchanged.
+
+### Files and documentation
+
+Core: src/voiceagent/{settings,runtime,hooks,conversation}.py. Developer templates: customization/.
+Reference integrations: integrations/{gateway,react,nextjs,tests}, private package/lock/tsconfig.
+Verification: four new unit files (customization, conversation controls, gateway, gateway store),
+existing test_runtime.py and clean-copy contract, inspect_sdk.py and SDK_SIGNATURES.txt.
+Packaging boundaries: Dockerfile, .dockerignore, .gitignore and pytest's root import path.
+Guides: docs/CUSTOMIZATION.md and integrations/README.md; updated README, CHANGELOG, decisions,
+copy/release notes and evidence reports. No real private env file or Cloud binding is included.
+The older Phase 9 archive is historical and is not a release of these new source changes.
+
+### Verification commands and observed results
+
+Working directory is voiceagent/. UV_CACHE_DIR=.tools/recovery-cache, UV_OFFLINE=true; full tests
+also use VOICEAGENT_TEST_WHEELHOUSE=.tools/wheelhouse. Pytest uses the established Windows sandbox
+exception for temporary directories. Python socket/DNS guards reject non-loopback requests;
+LiveKit control APIs and browser room/fetch operations are scripted. Real local HTTP, SQLite,
+JWT signing/verification and the native Agents tool/audio lifecycle are distinguished from mocks.
+
+| Command / check | Exit | Actual result |
+| --- | --- | --- |
+| `uv run pytest -q tests/unit/test_customization.py tests/unit/test_conversation_controls.py tests/unit/test_gateway.py tests/unit/test_gateway_store.py --durations=5` (inspection run) | 1 | **61 passed, 1 failed in 25.02s**; native interrupted farewell resumed stale ending context |
+| Same focused command after SDK StopResponse fix and two playout regressions | 0 | **64 passed in 19.45s** |
+| `npm.cmd run typecheck --prefix integrations` | 0 | Strict check includes React, Next.js proxy/routes and TS tests, against pinned SDK types |
+| `npm.cmd test --prefix integrations` | 0 | **12 passed**, no failures/skips; Node reported 572.2919ms, using fake room/fetch operations |
+| `uv sync --locked`, `uv pip check`, `uv lock --check` | 0 each | 100 lock entries, 99 installed packages compatible; no Python dependency changes |
+| `uv run python scripts/inspect_sdk.py > docs/SDK_SIGNATURES.txt` | 0 | Installed 1.8.10 APIs captured, including greeting/tool/playout/participant methods |
+| `uv run ruff check .`, `uv run ruff format --check .` | 0 each | Checks passed; 86 files formatted at that checkpoint |
+| `uv run python -m compileall -q src agent.py scripts tests integrations/gateway` | 0 | Compiled successfully |
+| `uv run pytest -q --durations=5` (first full run) | 1 | **453 passed, 3 failed in 429.89s**; two cleanup cases plus clean-copy failure from those same two cases; copy took 286.63s |
+| `uv run pytest -q tests/unit/test_runtime.py tests/unit/test_session_management.py tests/unit/test_conversation_controls.py --durations=5` after cleanup fix | 0 | **51 passed in 19.97s** |
+| `uv run pytest -q tests/unit/test_runtime.py -k job_cleanup --durations=2` with explicit controller-close errors | 0 | **4 passed, 7 deselected in 30.35s**; cleanup always attempted |
+| `uv run python scripts/check_secrets.py` | 0 | **120 indexed files** compared to **5 configured credential values**; no matches/private env or deployment binding indexed; known-value/filename scope only |
+| `.venv\Scripts\python.exe .tools/phase9_links.py` | 0 | **44** indexed relative-file links resolve; **73** external/scheme links not fetched; anchors not revalidated |
+| `Get-FileHash uv.lock -Algorithm SHA256` | 0 | Unchanged: 74c58ff65d390dce098f8ac2f603034ae9fff5bc8c97f8d1fdcc88dc98d13d32 |
+| Provider/turn/humanization/root prompt/example-config diff | 0 | No changes to those files |
+
+Prior interrupted-run evidence is retained separately from fresh checks: customization/backcompat
+80-case checkpoint passed; gateway 26 cases and SDK lifecycle 59 cases passed; npm install added
+22 example packages with scripts/audit disabled, and the later production advisory audit receipt
+reports zero known vulnerabilities. The audit receipt was reviewed locally, not refreshed on this
+focused run; it is not a security certification. Sandbox npm metadata initially failed DNS; the
+prior run used the approved public-registry fallback. Its editable rebuild initially missed cached
+Hatchling, then succeeded using the existing verified wheelhouse without changing uv.lock. No such
+dependency retry or global installation was necessary in this continuation.
+
+Final full-suite result after the cleanup correction:
+
+| Exact command / check | Exit | Actual result |
+| --- | --- | --- |
+| `uv run pytest -q --durations=5` | 0 | **458 passed in 369.67s**, no failures/skips |
+| `test_copy_editable_install_and_foreign_cwd` within that full run | 0 | **234.13s**; fresh locked editable environment, copied unit suite, foreign-CWD/config/import isolation and customization/integration source exclusions passed |
+
+The parent-suite count includes 66 additional parametrized cases over the 392-case Phase 9
+baseline. The copied unit rerun and 12 Node cases are separate evidence, not extra Python cases.
+Final source changes were included in the passing full run; subsequent edits only record evidence.
+Final source checks:
+
+| Exact command / check | Exit | Actual result |
+| --- | --- | --- |
+| `uv run ruff check .` | 0 | All checks passed |
+| `uv run ruff format --check .` | 0 | **88 files** already formatted |
+| `uv run python -m compileall -q src agent.py scripts tests integrations/gateway` | 0 | Final Python source compiles |
+| `uv run python scripts/check_secrets.py` | 0 | **120 indexed files**, **5 configured credential values**; no private env/deployment file indexed |
+| `uv run python .tools/final_worktree_checks.py` | 0 | **120 working-tree source files**, same **5 known values**, **44 relative-file links** resolve; **74 external/scheme links** not fetched; anchors not revalidated |
+| `git diff --check` and `git diff --cached --check` | 0 | No whitespace errors |
+| `git ls-files '.env*' 'customization/.env*' 'integrations/**/.env*' 'livekit*.toml' '.tools/*' '.venv/*' 'integrations/node_modules/*'` | 0 | Only the four .env.example files listed |
+| `Get-Command docker,lk -ErrorAction SilentlyContinue` | 1 | Neither executable found; no image build or CLI/deployment verification claimed |
+
+Final staging was declined by the user/tool approval boundary. Existing staged work was preserved;
+the final controller/runtime cleanup changes, test_runtime.py and two evidence reports remain
+unstaged. The supplemental ignored helper checks the actual working-tree bytes at all indexed paths,
+so the final source is covered despite the index/worktree difference. Both secret checks are limited
+to configured values/filenames, not general unknown-secret detection. No commit/push was performed.
+
+### Remaining blockers and readiness boundaries
+
+No deployment/push/paid tests or credentials changes are authorized or performed. Review-ready
+source is not a public-site production certification: implement and review the host's real
+authentication/challenge/trusted-network adapter, provision one durable central gateway/DB and
+verify deployed worker caps and matching dispatch before enabling traffic. Horizontally replicated
+gateway hosts need a shared-store adapter; the current SQLite topology must not be misrepresented.
+The gateway's strict token revocation reference is Cloud-only. Exact-time termination during
+upstream outages cannot be promised; failed cleanup holds admission capacity for reconciliation.
+
+Type checking and Node mocks do not prove a built Next.js application, real browser microphone/
+autoplay, Cloud dispatch/revocation, or live greeting/farewell behavior. Those require a separately
+approved host/worker acceptance run. The original Phase 9 blockers remain: quantitative live
+metrics/scenario coverage, image inspection, draining/update/rollback, temporary URL diagnostic
+cleanup, licensing/source ownership and voice rights. No claims were silently promoted to PASS.
+
+## Focused final source review — post-Phase-9 extension
+
+Date: 2026-11-02, Asia/Karachi. Reviewed the 53 changed paths against HEAD, including staged
+additions, final unstaged controller/runtime/test corrections, integration templates, npm lock
+metadata, tests, packaging rules and documentation. `git ls-files --others --exclude-standard`
+returned no untracked source files. No critical runtime or security defect was confirmed by this
+review, so no functional code, dependency, credential or pipeline change was made.
+
+Findings and boundaries:
+
+- Greeting modes are opt-in/once-per-session; custom speech bypasses the LLM, dynamic uses the
+  existing model with tools disabled, and user-first emits nothing. Legacy paths/static greetings
+  remain supported. Native tool context, interrupted farewell suppression and cleanup fixes were
+  inspected and their existing regressions rerun. No new acoustic or live-model proof is implied.
+- Next.js authentication deliberately fails closed until the host implements verified identity/
+  abuse protection and trusted network mapping. Exact origin, bounded bodies, short signed
+  assertions, scoped microphone-only participant tokens, explicit server dispatch, owner-only end
+  and durable transaction-based quotas are present. This is not authentication/production rollout
+  approval; real host/browser/Cloud acceptance remains pending.
+- The gateway is a single-host persistent SQLite service, not a serverless token endpoint. Existing
+  guidance already forbids ephemeral storage, network filesystems and independent replica DBs.
+  integrations/README.md now explicitly says **do not host the SQLite gateway in Vercel serverless**;
+  a Vercel-hosted Next.js proxy may call the separately hosted durable gateway. No topology redesign.
+- The staged index still omits the final verified cleanup corrections and test_runtime.py changes.
+  Do not commit/export that index as the verified final source. Prior staging denial is respected;
+  this review does not stage, commit, push, deploy or regenerate the older source archive.
+- Secret checks cover known configured values and filenames only. No private env, actual Cloud
+  binding, database, cache or vendor tree is indexed; only four example env files are included.
+  This does not establish detection of every possible unknown secret.
+
+Fresh verification (existing locked .venv, no install/provider requests):
+
+| Exact command / check | Exit | Observed result |
+| --- | --- | --- |
+| `.venv\Scripts\python.exe -m pytest -q tests/unit/test_conversation_controls.py tests/unit/test_customization.py tests/unit/test_gateway.py tests/unit/test_gateway_store.py tests/unit/test_runtime.py tests/unit/test_deployment.py --basetemp=.tools/review-pytest-unrestricted --durations=5` | 0 | **110 passed in 15.17s**, no failures/skips; external-network guard enabled |
+| `npm.cmd run typecheck --prefix integrations` | 0 | Strict TS checks passed |
+| `npm.cmd test --prefix integrations` | 0 | **12 passed**, zero failures/skips; Node reported 724.5419ms, room/fetch mocks |
+| `.venv\Scripts\python.exe -m ruff check .` | 0 | All checks passed |
+| `.venv\Scripts\python.exe -m ruff format --check .` | 0 | 88 files already formatted |
+| `.venv\Scripts\python.exe scripts/check_secrets.py` | 0 | 120 indexed files checked against five configured credential values |
+| `.venv\Scripts\python.exe .tools/final_worktree_checks.py` | 0 | 120 working-tree source files, same five known values; 44 relative-file links resolve, 74 external/scheme links not fetched, anchors not revalidated |
+| `git check-ignore .env.local customization/.env.local integrations/gateway/.env.local integrations/nextjs/.env.local livekit.toml integrations/gateway/limits.sqlite3 integrations/node_modules/example.js .tools/review_pending_end.py` | 0 | All named private/local paths excluded |
+| `git diff --check`, `git diff --cached --check` | 0 each | No whitespace errors |
+
+The initial sandboxed pytest command used the same six files and
+`--basetemp=.tools/review-pytest-temp`; it stalled at the first async case without test results and
+was stopped (exit 1, not an assertion failure). One exploratory native-session script,
+`uv run python .tools/review_pending_end.py` with UV_OFFLINE=true and the existing cache, likewise
+stalled without results and was stopped (exit 1). No conclusion is drawn from that probe. The
+established regression suite then ran once outside the Windows sandbox and passed as recorded.
+No repeated dependency/cache recovery or global environment change was attempted.
+
+Official token and RoomService documentation was rechecked: the explicit revoke_token_ts path
+also supports a participant who already left. This supports the cleanup API choice, not a claim
+that Cloud revocation was tested here. See the existing official references in integrations/README.md.
+The previous **458-case full Python run**, compilation, SDK/dependency and clean-copy results remain
+the recorded baseline; they were not rerun in this documentation-only review. The 110 cases are a
+subset, not additional cases. Core/provider settings, code and locks are unchanged by this review.
+
+**Source review complete, offline scope.** Production/live integration and final release remain
+pending host authentication, a supervised durable gateway, real browser/Cloud acceptance and the
+previous quantitative, operational, image and legal gates. No new paid/live testing is authorized.
+
+## Final reusable source handoff — not a new development phase
+
+Date: 2026-11-02, Asia/Karachi. The user explicitly authorized staging all reviewed changes and
+committing/pushing them to the existing GitHub main branch with a normal fast-forward push.
+This supersedes earlier staging/push restrictions in historical sections. It does not authorize
+LiveKit deployment/update, credential changes, paid provider requests or another implementation phase.
+
+The complete 53-path diff and untracked-file list were inspected. No untracked source was present.
+The verified controller subscription, guaranteed lifecycle cleanup and test_runtime.py fixes are
+now staged with the other reviewed source, examples, tests and documentation. No runtime or
+dependency change was introduced during finalization; no release-blocking source defect was found.
+README, customization/integration and release guides distinguish the completed reusable core from
+future portfolio application integration. SQLite requires persistent single-host local storage;
+it is **not suitable for Vercel serverless**. A separately hosted durable gateway may serve a
+Vercel-hosted Next.js proxy. Upstash integration is deferred to the portfolio implementation and
+is neither implemented nor a dependency in this handoff. The historical local source ZIP is not
+the current handoff and is excluded, along with caches, private env/bindings, DBs and build artifacts.
+
+Final verification, from voiceagent/ using the existing locked .venv:
+
+| Exact command / check | Exit | Result |
+| --- | --- | --- |
+| `git fetch origin main`; `git rev-list --left-right --count main...origin/main` before staging | 0 each | Existing local/remote main matched at 1fe4b9f; counts 0/0 |
+| `git add -u -- .`; `git diff --name-only` | 0 each | All intended reviewed tracked additions/edits staged; no worktree/index differences at that checkpoint |
+| `uv lock --check --offline` | 0 | 100 entries; lock consistent |
+| `uv pip check` | 0 | 99 installed packages compatible |
+| `.venv\Scripts\python.exe -m ruff check .` | 0 | All checks passed |
+| `.venv\Scripts\python.exe -m ruff format --check .` | 0 | 88 files already formatted |
+| `.venv\Scripts\python.exe -m compileall -q src agent.py scripts tests integrations/gateway` | 0 | Compiled successfully |
+| `.venv\Scripts\python.exe scripts/inspect_sdk.py > .tools/final_sdk.txt`; `Compare-Object (Get-Content .tools/final_sdk.txt) (Get-Content docs/SDK_SIGNATURES.txt)` with difference failure guard | 0 each | Installed SDK signatures match recorded 1.8.10 contract |
+| `Get-FileHash uv.lock -Algorithm SHA256` | 0 | Unchanged: 74c58ff65d390dce098f8ac2f603034ae9fff5bc8c97f8d1fdcc88dc98d13d32 |
+| `npm.cmd run typecheck --prefix integrations` | 0 | Strict TypeScript checks passed |
+| `npm.cmd test --prefix integrations` | 0 | **12 passed**, no failures/skips; Node reported 525.906ms; mocked room/fetch boundaries |
+| `.venv\Scripts\python.exe scripts/check_secrets.py` | 0 | 120 indexed files against five configured credential values, no matches/private env/binding indexed |
+| `.venv\Scripts\python.exe .tools/final_worktree_checks.py` | 0 | 120 working-tree files, same five values; 44 relative-file links resolve, 74 external/scheme links not fetched, anchors not revalidated |
+| `git grep --cached -l -E -- '-----BEGIN (RSA \|EC \|OPENSSH )?PRIVATE KEY-----\|gsk_[A-Za-z0-9]{20,}\|sk_live_[A-Za-z0-9]{20,}\|CA_[A-Za-z0-9]{8,}'` | 1 (expected no-match) | No indexed selected private-key/provider-key patterns or Cloud agent IDs; wrapper exit 0 |
+| `.venv\Scripts\python.exe -m pytest -q --durations=5` | 0 | **458 passed in 438.07s**, no failures/skips; full suite includes independent locked editable clean-copy installation and copied unit suite (**302.36s** copy case) |
+
+External-network guards apply to Python tests; UV_OFFLINE=true, UV_CACHE_DIR=.tools/recovery-cache and
+VOICEAGENT_TEST_WHEELHOUSE=.tools/wheelhouse keep the clean-copy installation offline. The established
+Windows sandbox exception is used for pytest. No providers, Cloud deployment or browser audio are
+exercised. Known-value/filename and selected-pattern scans do not guarantee all unknown-secret detection.
+
+Production acceptance remains pending the host's real authentication/abuse policy, supervised durable
+gateway storage and verified worker limits, real browser/Cloud dispatch/revocation and live greeting/
+ending tests, quantitative/acoustic scenarios, image/operations/drain/rollback and legal/voice rights.
+These do not prevent developers from cloning/configuring the reusable source, but they prevent a
+claim of certified production readiness. Commit/push outcome is verified separately in the handoff;
+the report does not embed a circular reference to its own future commit hash.
+
+All offline handoff gates pass. Final evidence edits are documentation only; the runtime/test bytes
+are those from the passing full suite. Final staging includes all 53 reviewed changed files and
+resolves the prior index/worktree mismatch. Indexed secret checks, working-tree secret/link checks
+and both Git whitespace checks are repeated on the finalized source before commit. The user-approved
+delivery is a source commit and normal fast-forward push to the existing main branch, not a
+deployment, package publication, signed release, portfolio implementation or production certification.

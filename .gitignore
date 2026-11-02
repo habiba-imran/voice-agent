@@ -23,3 +23,12 @@ build/
 .uv-diagnostic-cache/
 .tools/
 console-recordings/
+node_modules/
+.next/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+.npmrc

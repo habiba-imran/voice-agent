@@ -92,9 +92,20 @@ This is structured-data omission and configured-value matching, not an arbitrary
 unknown-secret scanner. No LLM-based redaction service is enabled.
 
 Effective config printing also redacts known values accidentally placed in noncredential fields;
-unknown config field names are omitted from diagnostics. Room URLs must use wss remotely; ws is
-allowed only on loopback. Embedded username/password/query/fragment is rejected without echoing
-input. Normal independently hosted secure LiveKit endpoints remain supported.
+unknown config field names are omitted from diagnostics. Room URLs require TLS remotely: wss and
+the SDK-supported https alias are accepted. Plaintext ws/http is limited to localhost, 127.0.0.1
+and ::1. Agents 1.8.10 performs the actual http->ws / https->wss conversion; settings/environment
+values are not rewritten. Embedded userinfo (including empty userinfo), query and fragment are
+rejected without echoing input; invalid/zero ports and missing hosts remain rejected. Cloud marker
+variables do not bypass validation. Independently hosted secure endpoints remain supported.
+
+A temporary startup diagnostic, requested to investigate a Cloud CrashLoop, prints one JSON line
+to stderr before room-mode startup validation/SDK logging setup. It contains exactly
+`livekit_url_scheme` and `livekit_url_host_category`. Scheme is restricted to wss/https/ws/http,
+unsupported or unparseable; host category is loopback/non-loopback/unknown, classified without DNS.
+The line contains no hostname, port, path, userinfo, query/fragment, credential or parser exception.
+It is omitted for config/validate/help/console. Remove this temporary diagnostic after the owner
+confirms the runtime-injected URL shape. A project-list URL does not establish that runtime value.
 
 Every worker start passes record=False and session_host=False. In installed 1.8.10, record=False
 resolves audio, transcripts, trace and log recording flags to false; the module provides no raw

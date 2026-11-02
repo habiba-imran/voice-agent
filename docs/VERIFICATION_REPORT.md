@@ -13,7 +13,7 @@ SDK_SIGNATURES.txt contain the source/API compatibility evidence.
 | Installed SDK compatibility | PASS | Agents and selected plugins 1.8.10; public signatures captured from isolated environment |
 | Phase 1 settings/prompt/hooks | PASS | Locked checks for precedence, redaction, snapshots, no-op/failure/tool/cancellation behavior |
 | Phase 1 text golden examples | PASS, limited sample | Five approved Groq requests; automatic assertions and manual review passed |
-| Complete offline suite | PASS | Final Phase 8 run: 348 passed, zero failures/skips in 462.35s; includes independent copied unit rerun (316.11s total copy verification) |
+| Complete offline suite | PASS | Latest startup-fix run: 392 passed, zero failures/skips in 392.23s; includes independent copied unit rerun (264.27s total copy verification) |
 | Lint / format / compile | PASS | Locked Ruff and compileall exit 0; phase report records final reruns |
 | Git/Docker exclusion policy | PASS | Env/deployment/recording/cache policy checked; .env.example remains eligible for Git |
 | Phase 8 image/deployment contracts | PASS, static only | Locked/pinned multi-stage image, non-root exec command, deny-default context, hardening, inert TOML and copied deployment metadata tested |
@@ -36,7 +36,7 @@ SDK_SIGNATURES.txt contain the source/API compatibility evidence.
 | Phase 5 prompt / native speculation | PASS, offline only | Ten serialized bounded-history requests; adoption/stale cancellation with humanization on/off and no early TTS |
 | Phase 5 native pool / fallback startup | PASS, offline only | Fake-wire Cartesia prewarm/reuse; model-load fallback verified outside event-loop thread |
 | Phase 5 live latency / cost acceptance | BLOCKED | Five cold / 20 warm voice trials and 30 warm speculation trials per condition not approved; real token/cache/spend and acoustic quality unmeasured |
-| Indexed source secret check | PASS, limited scope | 86 indexed files checked against five configured values; only .env.example indexed; not a general unknown-secret scan |
+| Indexed source secret check | PASS, limited scope | 87 indexed files checked against five configured values; only .env.example indexed; not a general unknown-secret scan |
 | Phase 6 native stream fault handling | PASS, offline only | STT/LLM/TTS × 401/403/429/503/timeout/network × before/after partial output; one attempt, no replay or surviving tasks |
 | Phase 6 session management | PASS, offline only | Startup/connect deadlines, room/participant close, idle/duration, cancellation, first-cause latch, bounded drain/cleanup and repeated callbacks |
 | Phase 6 concurrency / resource checks | PASS, local only | Three simultaneous native sessions with separate facts and failures, humanization on/off; task/generator closure verified |
@@ -52,7 +52,8 @@ SDK_SIGNATURES.txt contain the source/API compatibility evidence.
 | Acoustic interruption / turn detection | BLOCKED | Native SDK configured; no audio-to-stop or false-interruption measurements |
 | Latency / prompt caching | BLOCKED | No voice timing samples or observed cache hit counts |
 | Provider fault / concurrency acceptance | BLOCKED, live scope | Phase 6 native fake-provider checks pass; actual transport/quota/concurrency acceptance needs approval |
-| LiveKit Cloud deployment | NOT ATTEMPTED | Explicitly prohibited by the current instruction; no deployment actions performed |
+| Cloud startup URL compatibility | PASS, offline only | HTTP(S) alias mismatch reproduced and fixed against installed SDK; remote TLS/userinfo/query/fragment guards retained, 44 regression cases added |
+| Existing Cloud CrashLoop recovery | BLOCKED, unverified | Owner reports an existing agent failure; injected runtime URL unobserved. Temporary two-label diagnostic prepared; project-list wss/non-loopback alone does not explain the error. No Cloud action performed here |
 
 The only authorized live consumption was **five Groq GPT-OSS 20B text requests**, max 256 output
 tokens each, low reasoning, reasoning output excluded, no retries. All five completed successfully.
@@ -88,3 +89,10 @@ an OS signal or an active call. Image build/layer inspection, Linux/native model
 Cloud deploy/update/rollback and all live voice acceptance remain BLOCKED (Docker/CLI unavailable,
 provider/Cloud usage and deployment unapproved). See SELF_HOST.md, DEPLOY_LIVEKIT.md and PHASE_REPORT.md.
 Phase 9 onward remain unstarted.
+
+Post-Phase-8 startup fix: the old application guard rejected HTTPS and loopback HTTP before the
+SDK could normalize them. The validator now accepts those supported aliases under the existing
+transport security policy; environment values are unchanged. A temporary startup line contains
+only whitelisted scheme/host-category labels. The actual Cloud-injected URL, deployment-specific
+cause and recovery remain unverified. See the latest PHASE_REPORT.md section for red/green tests,
+source evidence and required manual runtime confirmation; no deployment or provider test occurred.

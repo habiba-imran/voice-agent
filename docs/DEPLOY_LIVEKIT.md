@@ -5,6 +5,14 @@ The LiveKit CLI and Docker are missing locally; template tests do not prove CLI 
 Cloud acceptance. The Phase 8 exit gate remains BLOCKED. See [container operations](SELF_HOST.md)
 for the shared Dockerfile, environment contract, model preparation, health and drain limits.
 
+Startup URL investigation: the application now accepts the installed SDK's secure https alias
+and loopback-only http alias, preserving the remote-TLS and no-userinfo/query/fragment rules.
+Temporarily, `start`/`dev` emits only `livekit_url_scheme` and `livekit_url_host_category` on stderr
+before validation. Read those labels after an explicitly authorized update of the existing agent;
+do not export its full environment/URL or create a replacement deployment to diagnose it. The
+project-list URL alone cannot confirm the injected runtime value. No remote update or CrashLoop
+recovery has been verified here; remove the temporary diagnostic once the runtime shape is known.
+
 ## Review before authorization
 
 Each copied folder must target its own approved LiveKit project/agent. The reusable template is

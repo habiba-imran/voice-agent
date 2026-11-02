@@ -28,7 +28,13 @@ from .lifecycle import SessionLifecycle
 from .performance import PerformanceObserver
 from .prompts import PromptSnapshot, session_prompt
 from .providers import ProviderChain, provider_chain
-from .settings import PROJECT_ROOT, ConfigurationError, Settings, load_settings
+from .settings import (
+    PROJECT_ROOT,
+    ConfigurationError,
+    Settings,
+    livekit_url_diagnostics,
+    load_settings,
+)
 from .telemetry import protect_logging
 from .turns import load_models, turn_options
 
@@ -300,6 +306,14 @@ def run() -> None:
     settings = load_settings()
     mode = sys.argv[1] if len(sys.argv) > 1 else "--help"
     if mode in {"console", "dev", "start"} and "--help" not in sys.argv:
+        if mode != "console":
+            # Temporary Cloud startup diagnostic, before validation/SDK logging setup.
+            # Only fixed labels go to stderr; never interpolate the URL or parser exception.
+            print(
+                json.dumps(livekit_url_diagnostics(settings.credentials.livekit_url)),
+                file=sys.stderr,
+                flush=True,
+            )
         settings.require_credentials(room=mode != "console")
     protect_logging(settings)
     if mode not in {"start", "dev", "console"}:

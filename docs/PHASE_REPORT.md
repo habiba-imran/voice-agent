@@ -9,6 +9,8 @@
 **Phase 6: offline implementation/verification PASS; live reliability/security acceptance BLOCKED.**
 **Phase 7: offline implementation/verification PASS; real-audio/hosted acceptance BLOCKED.**
 **Phase 8: offline artifacts/tests PASS; Docker/CLI/live deployment acceptance BLOCKED.**
+Cloud startup investigation: local URL compatibility fix and safe diagnostics prepared;
+the existing agent's injected URL and actual recovery remain unverified (see latest section).
 Historical blocker sections below are retained as evidence of earlier attempts; this status supersedes
 them. No deployment is authorized. The approved budget of five Groq text requests is exhausted;
 no additional provider requests, STT/TTS, audio recordings, or room tests are approved.
@@ -1199,3 +1201,117 @@ Phase 9 is not begun. Next: make Docker/CLI available, build and inspect the ima
 then obtain explicit target/deployment and capped provider/LiveKit-test approval before any real
 registration/dispatch/voice/update test. Voice/language authorization and separate recording consent
 remain required for the corresponding live checks. No request to paste credentials in chat.
+
+## Cloud startup CrashLoop investigation — URL validation and safe diagnostics
+
+Date: 2026-11-02, Asia/Karachi. Base source revision: c7b5e0e; no commit or deployment made here.
+Scope: the existing user-designated Cloud agent only. Its deployment identity is deliberately not
+written into this reusable source/report. The user prohibits provider requests, credential changes,
+replacement deployments and automatic rollout. All unverified live acceptance gates stay BLOCKED.
+
+### Evidence and exact confirmed defect
+
+The supplied error text originates in Settings.require_credentials(room=True), invoked from
+runtime.run before SDK CLI delegation and worker startup. It is not a server authentication or
+provider exception. load_settings merges process environment over project .env.local and does not
+interpolate/rewrite LIVEKIT_URL. agent.py exposes the configured server for native discovery;
+build_server passes the effective URL to AgentServer. No evidence of env precedence corruption
+was found, and regression tests preserve both process env and the synthetic dotenv file unchanged.
+
+The installed Agents 1.8.10 worker.py _connection_task uses urlparse, maps HTTP->WS and HTTPS->WSS,
+then constructs the /agent registration URL before ws_connect. The preexisting application guard
+allowed only WS/WSS, so valid HTTPS and loopback HTTP inputs failed before the supported native
+conversion could run. This compatibility defect was reproduced with fake credentials and safe
+.invalid/loopback URLs. Six actual installed-SDK transport-boundary tests independently verify
+the conversion and stop before any connection, registration or retry. The installed SDK source,
+[official versioned worker source](https://github.com/livekit/agents/blob/livekit-agents%401.8.10/livekit-agents/livekit/agents/worker.py)
+and [Cloud secret injection docs](https://docs.livekit.io/deploy/agents/secrets/) were checked.
+
+**The Cloud deployment-specific cause is NOT yet established.** The owner confirmed only that
+`lk project list` shows a wss URL with a non-loopback host; the actual runtime-injected URL has not
+been independently observed. A normal wss/non-loopback URL already passes the old validator, so
+those two project-list labels alone do not explain this error. The reproduced alias defect must
+not be presented as confirmed evidence that this deployment receives HTTP/HTTPS. No full runtime
+URL, account logs or Cloud environment was fetched. Docker/lk remain unavailable in this session's
+PATH; the owner's separate project-list observation is not treated as a local CLI verification.
+
+### Fix and requested temporary diagnostic
+
+- Accept HTTPS under the same remote TLS policy as WSS, and HTTP only for the existing allowed
+  plaintext hosts localhost, 127.0.0.1 and ::1. Leave scheme conversion to the installed SDK.
+  Require a host and valid/nonzero port; retain query/fragment/userinfo rejection. Explicit None
+  checks also reject empty userinfo that previously slipped through a truthiness check.
+- No environment or credential values are changed. No validation bypass is granted by Cloud
+  worker-token/deployment markers. Remote plaintext HTTP/WS and arbitrary schemes remain rejected.
+  Provider settings, streaming/humanization, lockfile and deployment configuration are unchanged.
+- At the owner's explicit follow-up request, room-mode start/dev emits one temporary JSON line
+  to stderr before validation and SDK logging setup. Exactly two fields are present:
+  `livekit_url_scheme` and `livekit_url_host_category`. Scheme labels are bounded to
+  wss/https/ws/http/unsupported/unparseable; host labels to loopback/non-loopback/unknown.
+  Classification uses parsing/IP checks without DNS. No hostname, full URL, port, path, userinfo,
+  query/fragment, token, credential or parser exception is printed. Console/config/validate/help
+  do not emit the line. Remove it once runtime injection is confirmed.
+
+Changed files: src/voiceagent/settings.py, src/voiceagent/runtime.py,
+tests/unit/test_livekit_urls.py, docs/RELIABILITY_SECURITY.md, docs/DEPLOY_LIVEKIT.md,
+docs/DECISIONS.md, docs/VERIFICATION_REPORT.md and this report. Added 44 regression cases covering aliases, actual installed
+SDK endpoint construction, env precedence, security rejections, Cloud-marker non-bypass,
+bounded diagnostics, CLI delegation and diagnostics on validation failure.
+
+### Commands, failures and corrections
+
+Commands run from voiceagent/, using project-local UV_CACHE_DIR=.tools/recovery-cache and
+UV_OFFLINE=true. Complete-suite copy verification also uses
+VOICEAGENT_TEST_WHEELHOUSE=.tools/wheelhouse. Pytest uses the established Windows sandbox exception
+for temp directories; autouse socket/DNS guards block non-loopback Python test connections. Actual
+SDK ws_connect is replaced before any network operation and all test credentials are synthetic.
+
+| Exact command / check | Exit | Actual outcome |
+| --- | --- | --- |
+| `uv run pytest -q tests/unit/test_livekit_urls.py --tb=short` (initial reproducer) | 1 | 10 failed in 25.75s: four real validator rejections and six test-harness errors because a newly constructed SDK server remained closed, so its connection loop never ran |
+| Same reproducer after setting synthetic SDK lifecycle state, production unchanged | 1 | **4 failed, 6 passed in 43.31s**: all four HTTP(S) alias cases reproduce the exact reported application error; all six native endpoint-construction cases pass |
+| `uv run ruff check src/voiceagent/settings.py src/voiceagent/runtime.py tests/unit/test_livekit_urls.py` | 1 | I001/E501 on a long runtime import; formatter split/organized it |
+| `uv run ruff format src/voiceagent/settings.py src/voiceagent/runtime.py tests/unit/test_livekit_urls.py` | 0 | One file reformatted, two unchanged |
+| `uv run pytest -q tests/unit/test_livekit_urls.py tests/unit/test_security.py tests/unit/test_settings.py --durations=5` (first fixed-code run) | 1 | **95 passed, 1 failed in 21.08s**: test incorrectly treated the generic https:// example in the fixed error message as leaked input; corrected the test to check hostname/private-data omission |
+| Same targeted command after assertion correction | 0 | **96 passed in 19.17s**, no failures/skips |
+| `uv run ruff check .` | 0 | All checks passed |
+| `uv run ruff format --check .` | 0 | 71 files already formatted |
+| `uv sync --locked` | 0 | Resolved 100 lock entries; audited 99 installed packages |
+| `uv lock --check` | 0 | Lock consistent |
+| `uv pip check` | 0 | All 99 installed packages compatible |
+| `uv run python -m compileall -q src agent.py scripts tests` | 0 | Compilation succeeds |
+| `uv run python scripts/inspect_sdk.py > .tools/sdk-url-check.txt` | 0 | Locked installed SDK inspected offline |
+| `Compare-Object (Get-Content .tools/sdk-url-check.txt) (Get-Content docs/SDK_SIGNATURES.txt)` with nonempty-difference failure guard | 0 | Output matches the existing signature record |
+| `Get-FileHash uv.lock -Algorithm SHA256` | 0 | Unchanged: 74c58ff65d390dce098f8ac2f603034ae9fff5bc8c97f8d1fdcc88dc98d13d32 |
+
+### Final verification
+
+| Exact command / check | Exit | Actual outcome |
+| --- | --- | --- |
+| `uv run pytest -q --durations=5` | 0 | **392 passed in 392.23s**, no failures/skips; 44 additional regression cases beyond the previous 348 |
+| Fresh-copy locked editable install/unit rerun within full suite | 0 | **264.27s**; independent nested environment, hash-verified offline wheels, prompt/config edits, foreign CWD/import/env isolation and SDK discovery/help; timeout settings unchanged |
+| Git/Docker exclusion tests within full suite | 0 | Private env/deployment/cache/recording exclusions and deny-default context contracts pass; not actual Docker layer inspection |
+| `uv run python scripts/check_secrets.py` | 0 | **87 indexed files** checked against **5 configured credential values**; no match/private env/deployment identities. This is a known-value/filename scan, not an unknown-secret guarantee |
+| `git ls-files '.env*' '.venv/*' '.tools/*' 'console-recordings/*'` | 0 | Only `.env.example` listed |
+| `git diff --check` and `git diff --cached --check` | 0 | No whitespace errors |
+| `Get-Command docker,lk -ErrorAction SilentlyContinue` | 1 | Neither executable found in this session's PATH; no image/CLI verification attempted |
+
+The exact candidate files are staged for indexed-content secret inspection without a commit or
+publication. Final documentation is followed by lint/format/compile, secret and whitespace reruns.
+No code changed after the passing full suite. Targeted and copied test counts are not added again
+to the 392 parent-suite count. No voice quality, latency, account-access or deployment result is
+inferred from these simulations.
+
+**Offline compatibility/security/diagnostic verification: PASS. Existing Cloud CrashLoop cause
+and recovery: BLOCKED/UNVERIFIED.** No image build, real registration, provider request,
+credential change, deployment/update, replacement agent or Cloud recovery is claimed. The only
+network access was public official documentation/source research.
+
+Next authorized action: an owner-approved source update of the same existing agent, followed by
+review of the two safe startup labels. No such action is executed here. HTTPS or loopback HTTP
+labels would confirm the alias mismatch is present, without proving all other URL components
+are valid. WSS/non-loopback labels would show that scheme/host class alone does not explain the
+failure; preserve the security checks and continue diagnosis rather than changing credentials or
+assuming a malformed URL. Remote plaintext/non-loopback remains rejected; a Cloud marker is not
+evidence authorizing a transport-security bypass. Remove the temporary diagnostic after runtime
+confirmation. All prior unverified live gates remain BLOCKED.

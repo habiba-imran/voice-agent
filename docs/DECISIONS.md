@@ -401,3 +401,25 @@ Cloud injects LIVEKIT credentials; only provider secrets and reviewed voice/sett
 belong in the private secrets file. Runbooks cover target review, status/logs, rolling updates,
 secret merges, paid-plan rollback and reviewed-source redeploy on other plans. All unexecuted
 Cloud/self-host/live gates remain BLOCKED. No release/Phase 9 work is claimed complete.
+
+## Cloud startup URL compatibility and temporary diagnosis — 2026-11-02
+
+The reported startup error comes from our require_credentials(room=True) guard, before the native
+worker starts. Environment loading preserves process env > project dotenv precedence and does not
+change LIVEKIT_URL. The installed Agents 1.8.10 connection loop accepts HTTP/HTTPS base URLs and
+maps them to WS/WSS when constructing the registration endpoint. Our scheme whitelist rejected
+both aliases before that code ran. Synthetic tests reproduce that mismatch independently of
+network access. The fix accepts https under the same remote TLS policy as wss, and http only for
+the existing three permitted loopback hosts, delegating conversion to the SDK. No environment or
+credential mutation, Cloud-marker bypass, new dependency/provider or Cloud action is introduced.
+Explicit None checks also reject empty userinfo instead of treating an empty username as absent.
+
+This confirms a code defect, not the existing Cloud deployment's injected URL or full CrashLoop
+cause. The user verified only the project-list URL (wss, non-loopback); a normal URL with that shape
+already passes our validator. The actual injected value and remote logs remain unavailable. At
+the user's request a temporary pre-validation room-startup stderr line exposes only whitelisted
+scheme and loopback/non-loopback/unknown labels, without DNS, hostname, URL components, credentials
+or parser errors. It is emitted even when startup validation fails and omitted for help/console/
+config/validate. Remove it after runtime confirmation. Actual recovery needs a separately approved
+update of the same existing agent and review of these safe labels; do not create a new deployment
+or change credentials to work around an unconfirmed diagnosis.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -26,6 +27,25 @@ SECRET_NAMES = {
 
 class ConfigurationError(ValueError):
     """Actionable configuration error whose message contains no input values."""
+
+
+def livekit_url_diagnostics(value: str) -> dict[str, str]:
+    """Bounded labels only; never return URL text, hostnames, ports or parser errors."""
+    try:
+        url = urlsplit(value)
+        scheme = url.scheme if url.scheme in {"wss", "https", "ws", "http"} else "unsupported"
+        hostname = url.hostname
+    except ValueError:
+        return {"livekit_url_scheme": "unparseable", "livekit_url_host_category": "unknown"}
+    if not hostname:
+        category = "unknown"
+    else:
+        try:
+            loopback = ip_address(hostname).is_loopback
+        except ValueError:
+            loopback = hostname == "localhost"
+        category = "loopback" if loopback else "non-loopback"
+    return {"livekit_url_scheme": scheme, "livekit_url_host_category": category}
 
 
 class Model(BaseModel):
@@ -229,20 +249,25 @@ class Settings(Model):
             try:
                 url = urlsplit(self.credentials.livekit_url)
                 valid = (
-                    url.scheme in {"wss", "ws"}
+                    # Agents 1.8.10 maps https->wss and http->ws at its transport boundary.
+                    url.scheme in {"wss", "https", "ws", "http"}
                     and url.hostname
                     and url.port != 0
-                    and not url.username
-                    and not url.password
+                    and url.username is None
+                    and url.password is None
                     and not url.query
                     and not url.fragment
-                    and (url.scheme == "wss" or url.hostname in {"localhost", "127.0.0.1", "::1"})
+                    and (
+                        url.scheme in {"wss", "https"}
+                        or url.hostname in {"localhost", "127.0.0.1", "::1"}
+                    )
                 )
             except ValueError:
                 valid = False
             if not valid:
                 raise ConfigurationError(
-                    "LIVEKIT_URL requires wss://host, or ws://loopback; "
+                    "LIVEKIT_URL requires wss://host or https://host; "
+                    "ws:// or http:// only on loopback; "
                     "no URL credentials/query/fragment"
                 )
         if self.tts.voice_id is None:

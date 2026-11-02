@@ -9,17 +9,29 @@ from livekit.agents import RunContext
 
 END_CANCELLED = "Ending cancelled; continue listening."
 
+# Whole-utterance grammar: every clause must be an ending or a short courtesy.
+# No substring matching, quoted text, questions, negations or trailing topic requests.
+_END = (
+    r"(?:goodbye|bye(?: bye)?|(?:that's|that is) (?:all(?: for now)?|it)|"
+    r"(?:i'm|i am) done|no more questions|"
+    r"i (?:don't|do not) want to know anything (?:more|else)|"
+    r"(?:you can |please )?(?:end|stop|finish|close) "
+    r"(?:(?:the|this|our) )?(?:call|session|conversation)|"
+    r"(?:i )?(?:have|need) to go(?: now)?)"
+)
+_COURTESY = r"(?:thanks|thank you|okay|ok|alright|please)"
+_SEPARATOR = r"[\s,.!;]+"
 _ENDING_INTENT = re.compile(
-    r"(?:please\s+)?(?:goodbye|bye(?:\s+bye)?|that's all(?:\s+for now)?|"
-    r"(?:end|stop|finish|close)\s+(?:the\s+|this\s+|our\s+)?(?:call|session|conversation)|"
-    r"(?:i\s+)?(?:have|need)\s+to\s+go(?:\s+now)?|thanks[, ]+bye)[.!\s]*",
+    rf"(?:{_COURTESY}{_SEPARATOR})*{_END}"
+    rf"(?:{_SEPARATOR}(?:{_END}|{_COURTESY}))*[,.!;\s]*",
     re.IGNORECASE,
 )
 
 
 def explicit_ending_intent(text: str) -> bool:
     """Conservative whole-utterance guard, not a general intent classifier."""
-    return bool(_ENDING_INTENT.fullmatch(text.strip()))
+    normalized = " ".join(text.replace("’", "'").split())
+    return bool(_ENDING_INTENT.fullmatch(normalized))
 
 
 class SessionControl:
@@ -136,11 +148,14 @@ class SessionControl:
         if self._ending_result is not None and not self._ending_result.done():
             self._ending_result.set_result(False)
 
-    async def end_from_tool(self, context, confirmed, latest_input):
+    def matches_ending(self, text):
         try:
-            allowed = self.ending_policy(latest_input) is True
+            return self.ending_policy(text) is True
         except Exception:
-            allowed = False
+            return False
+
+    async def end_from_tool(self, context, confirmed, latest_input):
+        allowed = self.matches_ending(latest_input)
         if not confirmed or not allowed:
             return "Not ended. Ask whether the user wants to end this conversation."
         ended = await self.request_end(context=context)

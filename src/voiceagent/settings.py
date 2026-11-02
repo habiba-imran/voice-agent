@@ -185,6 +185,7 @@ class IdentitySettings(Model):
 
 
 class GreetingSettings(Model):
+    wait_for_playback_ready: bool = False
     mode: Literal["user_first", "custom", "dynamic"] = "user_first"
     text: str | None = Field(default=None, min_length=1, max_length=500)
     instructions: str = Field(
@@ -195,6 +196,8 @@ class GreetingSettings(Model):
 
     @model_validator(mode="after")
     def coherent_greeting(self):
+        if self.wait_for_playback_ready and self.mode == "user_first":
+            raise ValueError("Playback-ready greeting requires custom or dynamic mode")
         if self.mode == "custom" and (self.text is None or not self.text.strip()):
             raise ValueError("Custom greeting requires nonblank greeting.text")
         if self.mode != "custom" and self.text is not None:
@@ -204,6 +207,7 @@ class GreetingSettings(Model):
 
 class EndingSettings(Model):
     enabled: bool = False
+    detect_explicit: bool = False
     farewell_mode: Literal["custom", "generated", "none"] = "custom"
     farewell: str = Field(default="Goodbye!", min_length=1, max_length=500)
     instructions: str = Field(
@@ -247,6 +251,10 @@ class Settings(Model):
             raise ValueError("Use greeting settings or legacy runtime.greeting, not both")
         if self.ending.enabled and self.limits.max_tool_steps == 0:
             raise ValueError("Ending tool requires limits.max_tool_steps > 0")
+        if self.ending.detect_explicit and not self.ending.enabled:
+            raise ValueError("Explicit ending detection requires ending.enabled")
+        if self.ending.detect_explicit and self.latency.preemptive_llm:
+            raise ValueError("Explicit ending detection requires preemptive_llm=false")
         flux = self.stt.model.startswith("flux-")
         if flux != (self.listening.turn_detection == "stt"):
             raise ValueError("Flux requires stt turn detection; Nova requires vad or semantic")
@@ -408,6 +416,8 @@ def load_settings(
 ) -> Settings:
     """Overrides > process env > customization .env.local > root .env.local > YAML > defaults.
 
+    An optional public customization/host/agent.yaml overlays the base YAML, below
+    dotenv/environment/constructor overrides.
     Explicit relative config/prompt paths resolve from the copied project root.
     No parent .env files, current working directory, or network access are used.
     """
@@ -441,6 +451,19 @@ def load_settings(
         raise ConfigurationError("Configuration must be a YAML mapping")
     if "credentials" in data:
         raise ConfigurationError("Credentials are forbidden in YAML; use environment or .env.local")
+    host_profile = project_root / "customization" / "host" / "agent.yaml"
+    if host_profile.exists():
+        try:
+            with host_profile.open("rb") as handle:
+                host_raw = handle.read(65537)
+            if len(host_raw) > 65536:
+                raise ConfigurationError("Host configuration exceeds 65536 bytes")
+            host = yaml.safe_load(host_raw.decode("utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError, RecursionError):
+            raise ConfigurationError("Cannot read public host configuration") from None
+        if not isinstance(host, dict) or "credentials" in host:
+            raise ConfigurationError("Host configuration must be a mapping without credentials")
+        data = _merge(data, host)
     data = _merge(data, _env_settings(local))
     data = _merge(data, _env_settings(env))
     data = _merge(data, overrides or {})

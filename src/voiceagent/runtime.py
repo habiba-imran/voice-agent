@@ -30,6 +30,7 @@ from .expression import FillerBudget, delivery_instructions, humanize_stream
 from .hooks import SessionExtensions, SessionHook, resolve_extensions
 from .lifecycle import SessionLifecycle
 from .performance import PerformanceObserver
+from .playback import ClientPlaybackReady, prime_playback
 from .prompts import PromptSnapshot, session_prompt
 from .providers import ProviderChain, provider_chain
 from .settings import (
@@ -130,6 +131,16 @@ class VoiceAgent(Agent):
             self._control.note_user_activity()
         if self.performance is not None:
             self.performance.end_of_turn()
+        text = new_message.text_content
+        if (
+            self._settings.ending.detect_explicit
+            and len(text.encode("utf-8")) <= self.limits.max_input_bytes
+            and self.control.matches_ending(text)
+        ):
+            # This hook runs before normal LLM generation. The SDK owns the static
+            # speech handle, interruption, playout and subsequent shutdown.
+            await self.control.request_end()
+            raise StopResponse()
 
     async def llm_node(self, chat_ctx, tools, model_settings):
         chat_ctx.truncate(max_items=self.history_messages)
@@ -278,6 +289,9 @@ async def run_session(ctx: JobContext, *, settings: Settings, hook: SessionHook 
 
             ctx.add_shutdown_callback(shutdown)
             room_listener = False
+            playback = (
+                ClientPlaybackReady(ctx.room) if settings.opening.wait_for_playback_ready else None
+            )
 
             def on_room_disconnected(*_):
                 stop("room_disconnected", drain=False)
@@ -286,6 +300,9 @@ async def run_session(ctx: JobContext, *, settings: Settings, hook: SessionHook 
                 if callable(getattr(ctx.room, "on", None)):
                     ctx.room.on("disconnected", on_room_disconnected)
                     room_listener = True
+                # With this opt-in, do not process microphone turns before the opening.
+                if playback is not None:
+                    session.input.set_audio_enabled(False)
                 # Explicit local VAD/direct clients; no default LiveKit Inference pipeline.
                 async with asyncio.timeout_at(deadline):
                     await session.start(
@@ -311,12 +328,17 @@ async def run_session(ctx: JobContext, *, settings: Settings, hook: SessionHook 
                     if settings.opening.mode != "user_first" and not control.unavailable():
                         wait = getattr(ctx, "wait_for_participant", None)
                         if callable(wait):
-                            await wait()
+                            participant = await wait()
+                            if playback is not None:
+                                await prime_playback(session)
+                                await playback.wait(participant, lifecycle.closed)
                 timer = asyncio.create_task(
                     stop_after(settings.runtime.max_session_seconds, stop),
                     name="voiceagent.session_limit",
                 )
                 await control.greet()
+                if playback is not None and not control.unavailable():
+                    session.input.set_audio_enabled(True)
                 if not lifecycle.closed.is_set() and not lifecycle.stopping:
                     logger.info("session_started", extra={"prompt_sha256": prompt.sha256})
                 await lifecycle.closed.wait()
@@ -327,6 +349,8 @@ async def run_session(ctx: JobContext, *, settings: Settings, hook: SessionHook 
                 lifecycle.reason = "cancelled"
                 raise
             finally:
+                if playback is not None:
+                    playback.close()
                 if room_listener:
                     ctx.room.off("disconnected", on_room_disconnected)
                 if timer is not None:

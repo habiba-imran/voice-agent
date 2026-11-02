@@ -4,10 +4,12 @@ identity:
   name: null                 # Optional spoken name; runtime.agent_name is the dispatch name.
   role: null                 # Optional short role. Personality belongs in prompt.md.
 greeting:
+  wait_for_playback_ready: false # Optional host audio-track acknowledgement.
   mode: user_first           # user_first | custom | dynamic
   text: null                 # Required only for custom mode; spoken exactly, no LLM request.
   instructions: Greet the participant in one short, natural sentence. Then listen.
 ending:
+  detect_explicit: false # Whole-utterance ending before the LLM; requires enabled.
   enabled: false             # Exposes the guarded end_session tool only when true.
   farewell_mode: custom      # custom | generated | none
   farewell: Goodbye!

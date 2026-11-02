@@ -107,3 +107,5 @@ additional cloud secrets. Local/self-hosted room workers require all six credent
 See docs/DECISIONS.md for official source links and compatibility limits. Provider access and paid
 testing, microphone use, recording, Docker execution, and cloud deployment require their own
 verification and any necessary authorization. No recordings or transcripts are persisted by default.
+
+See [optional public host profiles, playback-ready greetings and deterministic ending](docs/CLIENT_PROFILE.md) for the opt-in RTC host contract and deployment packaging boundary.

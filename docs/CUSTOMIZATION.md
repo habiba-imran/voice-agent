@@ -113,3 +113,5 @@ or update of that source. No customer or portfolio code belongs in src/voiceagen
 Before real traffic, confirm your chosen voice permissions, host authentication/abuse protection,
 gateway persistence and deployed worker duration/idle caps. Live browser/audio acceptance,
 quantitative metrics, image/rollout/drain/rollback and licensing gates remain pending.
+
+See [optional public host profiles, playback-ready greetings and deterministic ending](CLIENT_PROFILE.md) for the opt-in RTC host contract and deployment packaging boundary.

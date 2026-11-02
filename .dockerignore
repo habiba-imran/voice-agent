@@ -10,6 +10,10 @@
 !customization/
 !customization/agent.yaml
 !customization/prompt.md
+!customization/host/
+customization/host/**
+!customization/host/agent.yaml
+!customization/host/prompt.md
 !src/
 !src/voiceagent/
 !src/voiceagent/*.py

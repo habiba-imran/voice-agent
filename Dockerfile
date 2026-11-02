@@ -18,7 +18,8 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --no-dev --no-install-project --python /usr/local/bin/python
 COPY src/ ./src/
 COPY agent.py prompt.md config.example.yaml ./
-COPY customization/agent.yaml customization/prompt.md ./customization/
+# Only allowlisted public customization files enter the build context.
+COPY customization/ ./customization/
 # Editable source is intentional: prompt/config paths resolve from this copied project root.
 RUN uv sync --locked --no-dev --python /usr/local/bin/python
 COPY scripts/prepare_models.py ./scripts/prepare_models.py

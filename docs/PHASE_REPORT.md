@@ -1740,3 +1740,83 @@ resolves the prior index/worktree mismatch. Indexed secret checks, working-tree 
 and both Git whitespace checks are repeated on the finalized source before commit. The user-approved
 delivery is a source commit and normal fast-forward push to the existing main branch, not a
 deployment, package publication, signed release, portfolio implementation or production certification.
+
+## Optional host profile, playback readiness and deterministic ending — 2026-11-03
+
+Scope: the owner requested fixed opening/farewell speech, explicit goodbye detection before
+LLM generation and a lightweight public knowledge profile for a consuming application.
+The owner expressly authorized this focused continuation and normal commit/push to existing
+main after checks. It supersedes the default no-classifier/project-integration restriction
+only for these generic opt-in controls. The consuming application's code and personal facts
+remain in its own repository. Default core behavior and all provider/turn/experiment settings
+remain unchanged; no new dependency, credential edit, recording or deployment is authorized.
+
+Files: src/voiceagent/{conversation,runtime,settings}.py; new playback.py and
+tests/unit/test_voice_experience.py; Dockerfile, ignore policies, customization/agent.yaml;
+new docs/CLIENT_PROFILE.md, README, CUSTOMIZATION and this report.
+
+Implementation: optional own-participant playback-ready acknowledgement under the existing
+startup deadline; input hold before scheduling the once-only fixed opening; 300 ms supplied
+silent PCM to avoid browser play()/first-media deadlock without TTS/LLM or persisted audio;
+whole-utterance English exit grammar in the STT-completed-turn hook before normal generation;
+existing idempotent playout/timeout/barge-in ending plus native StopResponse suppression;
+bounded public host-overlay configuration and exactly two optional public Docker assets.
+Preemptive LLM is rejected with deterministic ending enabled. Default user-first opening
+and disabled ending remain unchanged. No host-specific facts or voice/deployment IDs enter
+this reusable source. Static custom speech uses the existing TTS provider/voice, rather than
+generating paid prerecorded assets without authorization.
+
+Official node/audio/token/build docs were checked against installed Agents/plugins 1.8.10
+and RTC signatures/source, including input enablement, participant attributes and supplied
+speech audio. LiveKit upload respects .gitignore as well as .dockerignore. Consequently a
+host must assemble a separate public-only build context with a suitable root .gitignore;
+merely adding ignored profile files to this checkout is insufficient. CLIENT_PROFILE.md
+documents this boundary, unchanged host-owned room cleanup and real-device acceptance.
+
+Verification ran from the worker repository. Process-local UV_CACHE_DIR=.tools/recovery-cache,
+UV_OFFLINE=true, UV_FIND_LINKS=.tools/wheelhouse and VOICEAGENT_TEST_WHEELHOUSE=.tools/wheelhouse
+kept locked installation/copy verification offline. Tests used the established Windows
+sandbox exception and the autouse external Python DNS/socket guard; only local asyncio/
+HTTP test plumbing is allowed. Native session output, provider replies and registration
+are scripted, never actual provider requests. No settings/global cache/security change.
+
+| Exact command | Exit | Observed result |
+| --- | --- | --- |
+| `uv sync --locked` | 0 | 100 entries resolved; 99 packages audited |
+| `uv run pytest -q tests/unit/test_voice_experience.py tests/unit/test_conversation_controls.py tests/unit/test_customization.py -x --tb=short` | 0 | 94 passed in 22.89s before the final three native regressions |
+| `uv run pytest -q tests/unit/test_voice_experience.py -x --tb=short` | 0 | Final 59 new cases passed in 24.14s |
+| `uv run ruff check .` | 0 | All checks passed |
+| `uv run ruff format --check .` | 0 | 91 files already formatted |
+| `uv run python -m compileall -q src agent.py scripts tests` | 0 | Source, shim, scripts and tests compile |
+| `uv run pytest -q --durations=5` | 0 | **517 passed in 411.51s**, no failures/skips |
+| `test_copy_editable_install_and_foreign_cwd` in the full run | 0 | **261.01s**; fresh locked editable install, independent copied unit rerun and source/env/build isolation |
+
+Targeted/copy counts are not added to the 517 parent count. The new native tests prove fixed
+speech paths do not call a model, probe audio bypasses TTS, the completed-turn hook suppresses
+normal generation, farewell playout precedes shutdown, timeout closes, genuine user barge-in
+cancels ending, and stable knowledge plus prior answers reach the normal provider request.
+Scripted answers do not establish a real model's factual accuracy or policy compliance.
+
+Initial failed attempts were corrected before final checks: a streaming test asserted final
+punctuation while its TTS generator was still intentionally held (36 passed/1 failed); a
+20 ms readiness-race timeout was too short for Windows scheduling (42 passed/1 failed);
+the new packaging test exposed nested host files admitted by the directory exception
+(53 passed/1 failed, repeated while the correction was in progress); an intermediate rule
+edit accidentally matched the two intended asset paths too (53 passed/1 failed); a test
+double overwrote multiple native event listeners, causing false cleanup failure (54 passed/
+1 failed). The final packaging exclusion rules and multi-listener double retain the intended
+assertions. Initial Ruff import/line-length findings were formatted/fixed. No failing run is
+counted as a pass; no full-suite/copy timeout was relaxed.
+
+Exit gate: **offline implementation and full regression PASS**. Final evidence edits are
+documentation only. Indexed known-credential/private-filename and whitespace scans are run
+on the finalized staged bytes before commit; result is recorded below. Real desktop/mobile
+audibility, autoplay, production provider answers/usage, room teardown and Linux/CLI/Cloud
+packaging remain unverified and need separate approved live acceptance. No latency, listening,
+provider access or production readiness claim follows from these tests. The existing worker
+must be updated separately with its host's prepared public profile; source push is not a
+manual deployment or credential update. All historical unverified acceptance gates remain.
+
+Final indexed checks: scripts/check_secrets.py exited 0: 123 indexed files compared
+against five configured credential values; no match/private environment or deployment
+file indexed. Whitespace and static checks were repeated on the final documentation.

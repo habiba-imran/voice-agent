@@ -32,3 +32,6 @@ node_modules/
 *.db-wal
 *.db-shm
 .npmrc
+
+# Public host profile is staged locally by the consuming project, never distributed.
+/customization/host/
